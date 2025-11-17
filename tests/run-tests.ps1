@@ -10,39 +10,42 @@ $failCount = 0
 
 # Test 1: Initialize
 Write-Host "Test: Initialize handshake" -ForegroundColor Yellow
-$result1 = Get-Content "tests/test-init.json" | dotnet run --project $projectPath 2>$null
+$result1 = Get-Content "tests/test-init.json" | dotnet run --project $projectPath -- --environment dev 2>$null
 $json1 = $result1 | ConvertFrom-Json
 if ($json1.result.protocolVersion -eq "2024-11-05") {
     Write-Host "   PASS" -ForegroundColor Green
     $passCount++
 } else {
     Write-Host "   FAIL" -ForegroundColor Red
+    Write-Host "   Output: $result1" -ForegroundColor Gray
     $failCount++
 }
 Write-Host ""
 
 # Test 2: Tools/List
 Write-Host "Test: Tools list (empty)" -ForegroundColor Yellow
-$result2 = Get-Content "tests/test-tools-list.json" | dotnet run --project $projectPath 2>$null
+$result2 = Get-Content "tests/test-tools-list.json" | dotnet run --project $projectPath -- --environment dev 2>$null
 $json2 = $result2 | ConvertFrom-Json
 if ($json2.result.tools -is [array] -and $json2.result.tools.Count -eq 0) {
     Write-Host "   PASS" -ForegroundColor Green
     $passCount++
 } else {
     Write-Host "   FAIL" -ForegroundColor Red
+    Write-Host "   Output: $result2" -ForegroundColor Gray
     $failCount++
 }
 Write-Host ""
 
 # Test 3: Invalid Method
 Write-Host "Test: Invalid method error handling" -ForegroundColor Yellow
-$result3 = Write-Output '{"jsonrpc":"2.0","id":3,"method":"invalid/method"}' | dotnet run --project $projectPath 2>$null
+$result3 = Write-Output '{"jsonrpc":"2.0","id":3,"method":"invalid/method"}' | dotnet run --project $projectPath -- --environment dev 2>$null
 $json3 = $result3 | ConvertFrom-Json
 if ($json3.error.code -eq -32601) {
     Write-Host "   PASS" -ForegroundColor Green
     $passCount++
 } else {
     Write-Host "   FAIL" -ForegroundColor Red
+    Write-Host "   Output: $result3" -ForegroundColor Gray
     $failCount++
 }
 Write-Host ""

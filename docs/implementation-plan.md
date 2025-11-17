@@ -6,6 +6,35 @@ Build Model Context Protocol (MCP) server in C# for Dataverse access with Azure 
 
 ---
 
+## Implementation Progress
+
+### ✅ Completed
+- [x] **Phase 1: MCP Protocol Foundation** (100%)
+  - [x] .NET 8 console project created
+  - [x] MCP protocol message handling (stdio)
+  - [x] Initialize/tools/list handlers
+  - [x] Stderr logging
+  - [x] Test suite created (3/3 tests passing)
+- [x] **Phase 2: Auth & Config** (100%)
+  - [x] EnvironmentConfig classes created
+  - [x] ConfigLoader with multi-source priority
+  - [x] AzureAuthProvider with token caching
+  - [x] CLI argument parsing (--environment, --config-dir, --help, --version)
+  - [x] Program.cs integration with validation
+  - [x] Config files created (dev/test/prod)
+  - [x] Auth flow verified with Azure CLI
+
+### 🚧 In Progress
+- [ ] **Phase 3: Dataverse Client & Tools** (0%)
+
+### 📋 Pending
+- [ ] Phase 4: Error Handling & Resilience
+- [ ] Phase 5: Integration & Testing
+- [ ] Phase 6: Release & Distribution
+- [ ] Phase 7: DevOps Integration (Future)
+
+---
+
 ## Architecture
 
 ### Components
@@ -156,7 +185,57 @@ pipe-dream-mcp/
 
 ---
 
-### Phase 5: DevOps Integration (Future)
+### Phase 5: Integration & Testing
+**Goal**: Wire all components and validate end-to-end
+
+**Tasks**:
+1. Integrate auth, config, and Dataverse client in `Program.cs`
+2. Add startup validation (az CLI, config, network)
+3. Implement graceful shutdown
+4. End-to-end testing from VS Code Copilot
+5. Update documentation with usage examples
+
+**Deliverable**: Fully functional MCP server ready for distribution
+
+---
+
+### Phase 6: Release & Distribution
+**Goal**: Package and publish for users
+
+**Tasks**:
+1. Configure `.csproj` for NuGet global tool packaging
+2. Set up GitHub Actions workflow for automated publishing
+3. Configure NuGet API key as GitHub secret
+4. Create release documentation (installation, upgrade, troubleshooting)
+5. Tag first release and verify NuGet publish
+6. Update README with installation instructions
+
+**Build order:**
+1. Add NuGet package metadata to `.csproj` → **Test local pack**
+2. Create `.github/workflows/publish-nuget.yml` → **Test workflow syntax**
+3. Add `NUGET_API_KEY` to GitHub secrets → **Verify secret access**
+4. Create version tag (`v0.1.0`) → **Test auto-publish**
+5. Verify package on NuGet.org → **Test user installation**
+6. Update README and docs → **Publish final docs**
+
+**Release process:**
+```powershell
+# 1. Update version in .csproj
+# 2. Commit changes
+git commit -am "Release v0.1.0"
+
+# 3. Create and push tag
+git tag v0.1.0
+git push origin v0.1.0
+
+# 4. GitHub Actions automatically publishes to NuGet
+```
+
+**Deliverable**: Published NuGet package available for global installation
+
+---
+
+### Phase 7: DevOps Integration (Future)
 **Goal**: Extend to Azure DevOps APIs
 
 **Operations** (Read-Only for Safety):
@@ -238,6 +317,114 @@ Add to VS Code settings (`.vscode/settings.json` or User Settings):
 
 ---
 
+## Distribution & Packaging
+
+### NuGet Global Tool (Recommended)
+
+**Setup .csproj for global tool:**
+```xml
+<PropertyGroup>
+  <PackAsTool>true</PackAsTool>
+  <ToolCommandName>pipe-dream-mcp</ToolCommandName>
+  <PackageId>PipeDreamMcp</PackageId>
+  <Version>0.1.0</Version>
+  <Authors>Ryan Michael James</Authors>
+  <Description>MCP server for read-only access to Microsoft Dataverse and Azure DevOps</Description>
+  <PackageProjectUrl>https://github.com/ryanmichaeljames/pipe-dream-mcp</PackageProjectUrl>
+  <RepositoryUrl>https://github.com/ryanmichaeljames/pipe-dream-mcp</RepositoryUrl>
+  <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  <PackageTags>mcp;dataverse;devops;copilot</PackageTags>
+</PropertyGroup>
+```
+
+**Automated publishing via GitHub Actions:**
+
+Create `.github/workflows/publish-nuget.yml`:
+```yaml
+name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v0.1.0
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - run: dotnet restore
+    - run: dotnet build --configuration Release --no-restore
+    - run: dotnet test
+    - run: dotnet pack src/PipeDreamMcp --configuration Release --output ./nupkg
+    - run: dotnet nuget push ./nupkg/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
+```
+
+**Setup:**
+1. Get NuGet API key from https://www.nuget.org/account/apikeys
+2. Add as GitHub secret: Settings > Secrets > Actions > `NUGET_API_KEY`
+3. Tag release: `git tag v0.1.0 && git push origin v0.1.0`
+4. Workflow automatically publishes to NuGet.org
+
+**Manual testing locally:**
+```powershell
+# Pack locally
+dotnet pack src/PipeDreamMcp -c Release -o ./nupkg
+
+# Test local install
+dotnet tool install --global --add-source ./nupkg PipeDreamMcp
+```
+
+**Users install:**
+```powershell
+# Install
+dotnet tool install --global PipeDreamMcp
+
+# Update
+dotnet tool update --global PipeDreamMcp
+
+# Uninstall
+dotnet tool uninstall --global PipeDreamMcp
+```
+
+**VS Code configuration:**
+```json
+{
+  "github.copilot.chat.mcp.servers": {
+    "pipe-dream-dev": {
+      "command": "pipe-dream-mcp",
+      "args": ["--environment", "dev"]
+    }
+  }
+}
+```
+
+### Release Process
+
+**Publishing new version:**
+1. Update version in `PipeDreamMcp.csproj`
+2. Commit changes: `git commit -am "Release v0.1.0"`
+3. Create tag: `git tag v0.1.0`
+4. Push tag: `git push origin v0.1.0`
+5. GitHub Actions automatically publishes to NuGet.org
+
+**Users upgrade:**
+```powershell
+dotnet tool update --global PipeDreamMcp
+```
+
+### Alternative: Self-Contained Executable (Future)
+
+For users without .NET SDK, consider GitHub Releases with binaries:
+```powershell
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./publish/win-x64
+```
+
+---
+
 ## Key Design Decisions
 
 ### Why C#?
@@ -264,6 +451,13 @@ Add to VS Code settings (`.vscode/settings.json` or User Settings):
 - No networking concerns
 - Direct process communication
 
+### Why NuGet Global Tool?
+- Easy install/update for users
+- Version management built-in
+- Works from any directory
+- Standard .NET distribution
+- Automatic PATH configuration
+
 ---
 
 ## Testing Strategy
@@ -280,7 +474,9 @@ Add to VS Code settings (`.vscode/settings.json` or User Settings):
 - Multi-tool scenarios
 
 ### Manual Testing
-- Connect from Claude Desktop / Cline
+- Connect from GitHub Copilot in VS Code
+- Test with multiple environments
+- Verify config switching
 - Execute queries via AI agent
 - Verify logging and errors
 
@@ -309,25 +505,14 @@ Add to VS Code settings (`.vscode/settings.json` or User Settings):
 
 ---
 
-## Timeline Estimate
-
-- **Phase 1**: 4-6 hours (MCP foundation)
-- **Phase 2**: 3-4 hours (Auth + Config)
-- **Phase 3**: 6-8 hours (Dataverse implementation)
-- **Phase 4**: 2-3 hours (Error handling)
-- **Phase 5**: 6-8 hours (DevOps - future)
-
-**Total Core Implementation**: ~15-20 hours
-
----
-
 ## Next Steps
 
-1. Review and approve plan
-2. Create project structure
-3. Begin Phase 1 implementation
-4. Iterate with testing between phases
-5. Document usage in README
+1. Complete Phase 2: Auth & Config
+2. Implement Phase 3: Dataverse Client & Tools
+3. Add Phase 4: Error Handling & Resilience
+4. Test Phase 5: Integration & Testing
+5. Release Phase 6: Distribution via NuGet
+6. Future Phase 7: DevOps Integration
 
 ---
 

@@ -5,7 +5,29 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Version>0.1.0</Version>
+    
+    <!-- NuGet Package Metadata -->
+    <PackageId>PipeDreamMcp</PackageId>
+    <Title>PipeDream MCP</Title>
+    <Authors>Ryan James</Authors>
+    <Description>Model Context Protocol server for read-only access to Microsoft Dataverse and Azure DevOps</Description>
+    <PackageTags>mcp;dataverse;powerplatform;devops;copilot;model-context-protocol</PackageTags>
+    <PackageProjectUrl>https://github.com/ryanmichaeljames/pipe-dream-mcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ryanmichaeljames/pipe-dream-mcp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    
+    <!-- Global Tool Configuration -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>pipe-dream-mcp</ToolCommandName>
+    <PackageOutputPath>../../nupkg</PackageOutputPath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.17.0" />
