@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using PipeDreamMcp.Auth;
+using PipeDreamMcp.Common;
 using PipeDreamMcp.Config;
 
 namespace PipeDreamMcp.Dataverse;
@@ -23,7 +24,18 @@ public class DataverseClient
         // Normalize URL - remove trailing slash if present
         var baseUrl = _config.Url.TrimEnd('/');
         
-        _httpClient = new HttpClient
+        var handler = new SocketsHttpHandler
+        {
+            // Connection pooling and timeout settings
+            PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
+            ConnectTimeout = TimeSpan.FromSeconds(15),
+            
+            // Enable automatic decompression
+            AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
+        };
+        
+        _httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri(baseUrl),
             Timeout = TimeSpan.FromSeconds(_config.Timeout)
@@ -31,6 +43,7 @@ public class DataverseClient
         _httpClient.DefaultRequestHeaders.Add("OData-MaxVersion", "4.0");
         _httpClient.DefaultRequestHeaders.Add("OData-Version", "4.0");
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.DefaultRequestHeaders.ConnectionClose = false; // Keep-alive
 
         Console.Error.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DataverseClient: Initialized for {baseUrl}");
     }
@@ -64,11 +77,14 @@ public class DataverseClient
 
         Console.Error.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DataverseClient: Query {endpoint}");
 
-        var response = await _httpClient.GetAsync(endpoint, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        return await RetryHelper.ExecuteWithRetryAsync(async () =>
+        {
+            var response = await _httpClient.GetAsync(endpoint, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonDocument.Parse(content);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonDocument.Parse(content);
+        }, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -92,11 +108,14 @@ public class DataverseClient
 
         Console.Error.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DataverseClient: Retrieve {endpoint}");
 
-        var response = await _httpClient.GetAsync(endpoint, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        return await RetryHelper.ExecuteWithRetryAsync(async () =>
+        {
+            var response = await _httpClient.GetAsync(endpoint, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonDocument.Parse(content);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonDocument.Parse(content);
+        }, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -122,17 +141,20 @@ public class DataverseClient
 
         Console.Error.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DataverseClient: Metadata {endpoint}");
 
-        var response = await _httpClient.GetAsync(endpoint, cancellationToken);
-        
-        if (!response.IsSuccessStatusCode)
+        return await RetryHelper.ExecuteWithRetryAsync(async () =>
         {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            Console.Error.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DataverseClient: Error response: {errorContent}");
-            response.EnsureSuccessStatusCode();
-        }
+            var response = await _httpClient.GetAsync(endpoint, cancellationToken);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                Console.Error.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DataverseClient: Error response: {errorContent}");
+                response.EnsureSuccessStatusCode();
+            }
 
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonDocument.Parse(content);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonDocument.Parse(content);
+        }, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -158,11 +180,14 @@ public class DataverseClient
 
         Console.Error.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DataverseClient: List {endpoint}");
 
-        var response = await _httpClient.GetAsync(endpoint, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        return await RetryHelper.ExecuteWithRetryAsync(async () =>
+        {
+            var response = await _httpClient.GetAsync(endpoint, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonDocument.Parse(content);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonDocument.Parse(content);
+        }, cancellationToken: cancellationToken);
     }
 
     private async Task EnsureAuthenticatedAsync(CancellationToken cancellationToken)

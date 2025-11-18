@@ -36,9 +36,29 @@ Build Model Context Protocol (MCP) server in C# for Dataverse access with Azure 
   - [x] tools/call handler routes to DataverseClient
   - [x] DataverseClient wired into Program.cs
   - [x] Tests updated and passing (3/3)
+- [x] **Phase 4: Error Handling & Resilience** (100% - COMPLETE & TESTED)
+  - [x] RetryHelper created with exponential backoff (3 retries, 1s/2s/4s)
+  - [x] Transient error detection (network, timeout, 408/429/500/502/503/504)
+  - [x] Rate limiting with Retry-After header parsing for 429 responses
+  - [x] AzureAuthProvider enhanced with retry logic (2 retries for auth)
+  - [x] User-friendly auth error messages (CLI not installed, not logged in, etc.)
+  - [x] InputValidator created with comprehensive validation
+  - [x] Entity name validation (max 128 chars, alphanumeric + underscore)
+  - [x] GUID validation with clear error messages
+  - [x] Field name validation (max 50 fields, format checks)
+  - [x] Filter expression validation (max 1000 chars, SQL injection prevention)
+  - [x] Page size validation (1-250 for list, 1-5000 for query)
+  - [x] GetUserFriendlyHttpError in McpServer for actionable error messages
+  - [x] SocketsHttpHandler with connection pooling (10min lifetime, 5min idle)
+  - [x] All operations wrapped in RetryHelper
+  - [x] All validations tested with real environment (teaureka-coredev)
+  - [x] SQL injection prevention verified (blocks --, /*, exec patterns)
+  - [x] Entity validation tested (rejects invalid@entity)
+  - [x] GUID validation tested (rejects not-a-valid-guid)
+  - [x] Successful queries tested (10 unmanaged solutions returned)
+  - [x] Metadata queries tested (full entity list returned)
 
 ### 📋 Pending
-- [ ] Phase 4: Error Handling & Resilience
 - [ ] Phase 5: Integration & Testing
 - [ ] Phase 6: Release & Distribution
 - [ ] Phase 7: DevOps Integration (Future)
@@ -180,18 +200,28 @@ pipe-dream-mcp/
 
 ---
 
-### Phase 4: Error Handling & Resilience
+### Phase 4: Error Handling & Resilience ✅ COMPLETE
 **Goal**: Production-ready error handling
 
-**Tasks**:
-1. Retry logic with exponential backoff
-2. Token expiration handling
-3. Rate limiting awareness
-4. Detailed error messages in MCP responses
-5. Validation of inputs before API calls
-6. Handle network failures gracefully
+**Status**: 100% Complete and tested with real environment
 
-**Deliverable**: Robust operation under various failure modes
+**Completed Tasks**:
+1. ✅ Retry logic with exponential backoff - RetryHelper with 3 retries (1s, 2s, 4s delays)
+2. ✅ Token expiration handling - Enhanced with 2 retries, 5-minute buffer, user-friendly errors
+3. ✅ Rate limiting awareness - Retry-After header parsing for 429 responses
+4. ✅ Detailed error messages - GetUserFriendlyHttpError translates HTTP errors to actionable guidance
+5. ✅ Input validation - InputValidator with entity, GUID, field, filter, and limit validation
+6. ✅ Network failure handling - SocketsHttpHandler with connection pooling, graceful error detection
+
+**Validation Testing Results**:
+- ✅ Entity validation: Rejected "invalid@entity" with clear message
+- ✅ GUID validation: Rejected "not-a-valid-guid" with format guidance  
+- ✅ SQL injection prevention: Blocked "-- comment" and other dangerous patterns
+- ✅ Successful queries: Retrieved 10 unmanaged solutions from teaureka-coredev
+- ✅ Metadata queries: Retrieved full entity list (1000+ entities)
+- ✅ Token caching: Verified 82+ minute token lifetime with automatic refresh
+
+**Deliverable**: ✅ Robust operation under various failure modes - ACHIEVED
 
 ---
 

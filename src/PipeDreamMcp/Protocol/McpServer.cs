@@ -1,4 +1,5 @@
 using System.Text.Json;
+using PipeDreamMcp.Common;
 using PipeDreamMcp.Dataverse;
 
 namespace PipeDreamMcp.Protocol;
@@ -194,15 +195,40 @@ public class McpServer
         if (_dataverseClient == null)
             throw new InvalidOperationException("Dataverse client not configured");
 
-        var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
-        var select = arguments.Value.TryGetProperty("select", out var selectProp) 
-            ? selectProp.EnumerateArray().Select(e => e.GetString()!).ToArray() 
-            : null;
-        var filter = arguments.Value.TryGetProperty("filter", out var filterProp) ? filterProp.GetString() : null;
-        var top = arguments.Value.TryGetProperty("top", out var topProp) ? topProp.GetInt32() : (int?)null;
+        try
+        {
+            var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
+            InputValidator.ValidateEntityName(entity);
+            
+            var select = arguments.Value.TryGetProperty("select", out var selectProp) 
+                ? selectProp.EnumerateArray().Select(e => e.GetString()!).ToArray() 
+                : null;
+            InputValidator.ValidateFieldNames(select);
+            
+            var filter = arguments.Value.TryGetProperty("filter", out var filterProp) ? filterProp.GetString() : null;
+            InputValidator.ValidateFilterExpression(filter);
+            
+            var top = arguments.Value.TryGetProperty("top", out var topProp) ? topProp.GetInt32() : (int?)null;
+            var validatedTop = InputValidator.ValidateTopCount(top);
 
-        var result = await _dataverseClient.QueryAsync(entity, select, filter, top, cancellationToken);
-        return result.RootElement.GetRawText();
+            var result = await _dataverseClient.QueryAsync(entity, select, filter, validatedTop, cancellationToken);
+            return result.RootElement.GetRawText();
+        }
+        catch (ArgumentException ex)
+        {
+            LogToStderr($"Validation error in dataverse_query: {ex.Message}");
+            throw new InvalidOperationException($"Invalid query parameters: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            LogToStderr($"HTTP error in dataverse_query: {ex.Message}");
+            throw new InvalidOperationException($"Failed to query Dataverse: {GetUserFriendlyHttpError(ex)}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            LogToStderr($"Unexpected error in dataverse_query: {ex.Message}");
+            throw new InvalidOperationException($"Query operation failed: {ex.Message}", ex);
+        }
     }
 
     private async Task<string> HandleDataverseRetrieveAsync(JsonElement? arguments, CancellationToken cancellationToken)
@@ -210,15 +236,37 @@ public class McpServer
         if (_dataverseClient == null)
             throw new InvalidOperationException("Dataverse client not configured");
 
-        var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
-        var idString = arguments.Value.GetProperty("id").GetString() ?? throw new ArgumentException("id parameter required");
-        var id = Guid.Parse(idString);
-        var select = arguments.Value.TryGetProperty("select", out var selectProp)
-            ? selectProp.EnumerateArray().Select(e => e.GetString()!).ToArray()
-            : null;
+        try
+        {
+            var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
+            InputValidator.ValidateEntityName(entity);
+            
+            var idString = arguments.Value.GetProperty("id").GetString() ?? throw new ArgumentException("id parameter required");
+            var id = InputValidator.ValidateGuid(idString, "id");
+            
+            var select = arguments.Value.TryGetProperty("select", out var selectProp)
+                ? selectProp.EnumerateArray().Select(e => e.GetString()!).ToArray()
+                : null;
+            InputValidator.ValidateFieldNames(select);
 
-        var result = await _dataverseClient.RetrieveAsync(entity, id, select, cancellationToken);
-        return result.RootElement.GetRawText();
+            var result = await _dataverseClient.RetrieveAsync(entity, id, select, cancellationToken);
+            return result.RootElement.GetRawText();
+        }
+        catch (ArgumentException ex)
+        {
+            LogToStderr($"Validation error in dataverse_retrieve: {ex.Message}");
+            throw new InvalidOperationException($"Invalid retrieve parameters: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            LogToStderr($"HTTP error in dataverse_retrieve: {ex.Message}");
+            throw new InvalidOperationException($"Failed to retrieve record: {GetUserFriendlyHttpError(ex)}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            LogToStderr($"Unexpected error in dataverse_retrieve: {ex.Message}");
+            throw new InvalidOperationException($"Retrieve operation failed: {ex.Message}", ex);
+        }
     }
 
     private async Task<string> HandleDataverseMetadataAsync(JsonElement? arguments, CancellationToken cancellationToken)
@@ -226,10 +274,23 @@ public class McpServer
         if (_dataverseClient == null)
             throw new InvalidOperationException("Dataverse client not configured");
 
-        var entity = arguments?.TryGetProperty("entity", out var entityProp) == true ? entityProp.GetString() : null;
+        try
+        {
+            var entity = arguments?.TryGetProperty("entity", out var entityProp) == true ? entityProp.GetString() : null;
 
-        var result = await _dataverseClient.GetMetadataAsync(entity, cancellationToken);
-        return result.RootElement.GetRawText();
+            var result = await _dataverseClient.GetMetadataAsync(entity, cancellationToken);
+            return result.RootElement.GetRawText();
+        }
+        catch (HttpRequestException ex)
+        {
+            LogToStderr($"HTTP error in dataverse_metadata: {ex.Message}");
+            throw new InvalidOperationException($"Failed to retrieve metadata: {GetUserFriendlyHttpError(ex)}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            LogToStderr($"Unexpected error in dataverse_metadata: {ex.Message}");
+            throw new InvalidOperationException($"Metadata operation failed: {ex.Message}", ex);
+        }
     }
 
     private async Task<string> HandleDataverseListAsync(JsonElement? arguments, CancellationToken cancellationToken)
@@ -237,12 +298,34 @@ public class McpServer
         if (_dataverseClient == null)
             throw new InvalidOperationException("Dataverse client not configured");
 
-        var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
-        var pageSize = arguments.Value.TryGetProperty("pageSize", out var pageSizeProp) ? pageSizeProp.GetInt32() : 50;
-        var pagingCookie = arguments.Value.TryGetProperty("pagingCookie", out var cookieProp) ? cookieProp.GetString() : null;
+        try
+        {
+            var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
+            InputValidator.ValidateEntityName(entity);
+            
+            var pageSize = arguments.Value.TryGetProperty("pageSize", out var pageSizeProp) ? pageSizeProp.GetInt32() : 50;
+            var validatedPageSize = InputValidator.ValidatePageSize(pageSize);
+            
+            var pagingCookie = arguments.Value.TryGetProperty("pagingCookie", out var cookieProp) ? cookieProp.GetString() : null;
 
-        var result = await _dataverseClient.ListAsync(entity, pageSize, pagingCookie, cancellationToken);
-        return result.RootElement.GetRawText();
+            var result = await _dataverseClient.ListAsync(entity, validatedPageSize, pagingCookie, cancellationToken);
+            return result.RootElement.GetRawText();
+        }
+        catch (ArgumentException ex)
+        {
+            LogToStderr($"Validation error in dataverse_list: {ex.Message}");
+            throw new InvalidOperationException($"Invalid list parameters: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            LogToStderr($"HTTP error in dataverse_list: {ex.Message}");
+            throw new InvalidOperationException($"Failed to list records: {GetUserFriendlyHttpError(ex)}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            LogToStderr($"Unexpected error in dataverse_list: {ex.Message}");
+            throw new InvalidOperationException($"List operation failed: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
@@ -261,6 +344,62 @@ public class McpServer
         await Console.Out.FlushAsync();
 
         LogToStderr($"Sent response (id: {response.Id})");
+    }
+
+    /// <summary>
+    /// Get user-friendly error message from HTTP exception
+    /// </summary>
+    private static string GetUserFriendlyHttpError(HttpRequestException ex)
+    {
+        var message = ex.Message;
+
+        // Network connectivity issues
+        if (message.Contains("connection refused", StringComparison.OrdinalIgnoreCase))
+            return "Cannot connect to Dataverse. Verify the URL is correct and the service is accessible.";
+
+        if (message.Contains("no such host", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("name resolution", StringComparison.OrdinalIgnoreCase))
+            return "Cannot resolve Dataverse hostname. Check your network connection and the configured URL.";
+
+        if (message.Contains("connection reset", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("broken pipe", StringComparison.OrdinalIgnoreCase))
+            return "Network connection was interrupted. The server will retry automatically.";
+
+        if (message.Contains("network is unreachable", StringComparison.OrdinalIgnoreCase))
+            return "Network is unreachable. Check your internet connection.";
+
+        // HTTP status codes
+        if (message.Contains("400") || message.Contains("Bad Request"))
+            return "Invalid request format. Check entity name and filter syntax.";
+
+        if (message.Contains("401") || message.Contains("Unauthorized"))
+            return "Authentication failed. Verify Azure CLI is logged in with correct permissions.";
+
+        if (message.Contains("403") || message.Contains("Forbidden"))
+            return "Access denied. Ensure your account has permissions to access this Dataverse resource.";
+
+        if (message.Contains("404") || message.Contains("Not Found"))
+            return "Resource not found. Verify the entity name and record ID are correct.";
+
+        if (message.Contains("429") || message.Contains("Too Many Requests"))
+            return "Rate limit exceeded. The server will automatically retry with appropriate delays.";
+
+        if (message.Contains("500") || message.Contains("Internal Server Error"))
+            return "Dataverse server error. This is a temporary issue and will be retried automatically.";
+
+        if (message.Contains("502") || message.Contains("Bad Gateway"))
+            return "Gateway error connecting to Dataverse. Will retry automatically.";
+
+        if (message.Contains("503") || message.Contains("Service Unavailable"))
+            return "Dataverse service temporarily unavailable. Will retry automatically.";
+
+        if (message.Contains("504") || message.Contains("Gateway Timeout"))
+            return "Gateway timeout connecting to Dataverse. Will retry automatically.";
+
+        if (message.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+            return "Request timed out. Try again or reduce the query complexity.";
+
+        return $"HTTP error occurred: {message}";
     }
 
     /// <summary>

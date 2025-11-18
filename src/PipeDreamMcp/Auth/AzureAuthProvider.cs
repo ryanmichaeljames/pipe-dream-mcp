@@ -56,13 +56,36 @@ public class AzureAuthProvider
                 // Refresh if token expires in less than 5 minutes
                 if (cachedToken.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
                 {
-                    LogToStderr($"Using cached token for {resource}");
+                    var timeRemaining = cachedToken.ExpiresOn - DateTimeOffset.UtcNow;
+                    LogToStderr($"Using cached token for {resource} (expires in {timeRemaining.TotalMinutes:F1} minutes)");
                     return cachedToken.Token;
+                }
+                else
+                {
+                    LogToStderr($"Cached token expired or expiring soon, refreshing...");
+                    _tokenCache.Remove(resource);
                 }
             }
 
-            // Get new token from Azure CLI
-            LogToStderr($"Requesting new token for {resource}");
+            // Get new token from Azure CLI with retry logic
+            return await AcquireNewTokenAsync(resource, cancellationToken);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Acquire a new token from Azure CLI with retry logic
+    /// </summary>
+    private async Task<string> AcquireNewTokenAsync(string resource, CancellationToken cancellationToken, int retryCount = 0)
+    {
+        const int maxRetries = 2;
+        
+        try
+        {
+            LogToStderr($"Requesting new token for {resource} (attempt {retryCount + 1}/{maxRetries + 1})");
             
             var tokenRequestContext = new TokenRequestContext(new[] { $"{resource}/.default" });
             var token = await _credential.GetTokenAsync(tokenRequestContext, cancellationToken);
@@ -70,20 +93,82 @@ public class AzureAuthProvider
             // Cache the token
             _tokenCache[resource] = token;
             
-            LogToStderr($"Token acquired, expires: {token.ExpiresOn:yyyy-MM-dd HH:mm:ss}");
+            var expiresIn = token.ExpiresOn - DateTimeOffset.UtcNow;
+            LogToStderr($"Token acquired successfully, expires in {expiresIn.TotalMinutes:F1} minutes ({token.ExpiresOn:yyyy-MM-dd HH:mm:ss} UTC)");
             return token.Token;
         }
         catch (AuthenticationFailedException ex)
         {
-            LogToStderr($"Authentication failed: {ex.Message}");
+            var errorMessage = $"Azure CLI authentication failed: {ex.Message}";
+            LogToStderr(errorMessage);
+
+            // Retry for transient failures
+            if (retryCount < maxRetries && IsTransientAuthError(ex))
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount)); // Exponential backoff
+                LogToStderr($"Retrying after {delay.TotalSeconds} seconds...");
+                await Task.Delay(delay, cancellationToken);
+                return await AcquireNewTokenAsync(resource, cancellationToken, retryCount + 1);
+            }
+
+            // Provide detailed error message based on exception
+            var userMessage = GetUserFriendlyAuthError(ex, resource);
+            throw new InvalidOperationException(userMessage, ex);
+        }
+        catch (OperationCanceledException)
+        {
+            LogToStderr("Token acquisition cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            LogToStderr($"Unexpected error during token acquisition: {ex.Message}");
             throw new InvalidOperationException(
-                "Azure CLI authentication failed. Please run 'az login' and ensure you have access to the resource.", 
+                $"Failed to acquire access token for {resource}. Error: {ex.Message}",
                 ex);
         }
-        finally
+    }
+
+    /// <summary>
+    /// Determine if an authentication error is transient and worth retrying
+    /// </summary>
+    private static bool IsTransientAuthError(AuthenticationFailedException ex)
+    {
+        var message = ex.Message.ToLowerInvariant();
+        return message.Contains("timeout") ||
+               message.Contains("network") ||
+               message.Contains("connection") ||
+               message.Contains("unavailable");
+    }
+
+    /// <summary>
+    /// Get user-friendly error message based on authentication failure
+    /// </summary>
+    private static string GetUserFriendlyAuthError(AuthenticationFailedException ex, string resource)
+    {
+        var message = ex.Message.ToLowerInvariant();
+
+        if (message.Contains("az: command not found") || message.Contains("az' is not recognized"))
         {
-            _lock.Release();
+            return "Azure CLI is not installed. Please install it from https://learn.microsoft.com/cli/azure/install-azure-cli";
         }
+
+        if (message.Contains("not logged in") || message.Contains("no accounts") || message.Contains("az login"))
+        {
+            return "Azure CLI is not authenticated. Please run 'az login' to authenticate.";
+        }
+
+        if (message.Contains("access denied") || message.Contains("unauthorized") || message.Contains("forbidden"))
+        {
+            return $"Access denied to resource '{resource}'. Ensure your Azure account has the necessary permissions.";
+        }
+
+        if (message.Contains("subscription"))
+        {
+            return "No active Azure subscription found. Please run 'az account set --subscription <subscription-id>' to select a subscription.";
+        }
+
+        return $"Azure CLI authentication failed for resource '{resource}'. Please run 'az login' and ensure you have access. Error: {ex.Message}";
     }
 
     /// <summary>
@@ -99,12 +184,20 @@ public class AzureAuthProvider
             var tokenRequestContext = new TokenRequestContext(new[] { "https://management.azure.com/.default" });
             var token = await _credential.GetTokenAsync(tokenRequestContext, cancellationToken);
             
-            LogToStderr("Azure CLI authentication verified");
+            var expiresIn = token.ExpiresOn - DateTimeOffset.UtcNow;
+            LogToStderr($"Azure CLI authentication verified (token expires in {expiresIn.TotalMinutes:F1} minutes)");
             return true;
+        }
+        catch (AuthenticationFailedException ex)
+        {
+            LogToStderr($"Azure CLI authentication verification failed: {ex.Message}");
+            Console.Error.WriteLine($"\nAuthentication Error: {GetUserFriendlyAuthError(ex, "Azure Resource Manager")}");
+            return false;
         }
         catch (Exception ex)
         {
-            LogToStderr($"Azure CLI authentication verification failed: {ex.Message}");
+            LogToStderr($"Unexpected error during authentication verification: {ex.Message}");
+            Console.Error.WriteLine($"\nError: Failed to verify Azure CLI authentication. {ex.Message}");
             return false;
         }
     }
