@@ -1,4 +1,4 @@
-namespace PipeDreamMcp.Common;
+namespace PipeDream.Mcp.Common;
 
 /// <summary>
 /// Helper for retrying operations with exponential backoff

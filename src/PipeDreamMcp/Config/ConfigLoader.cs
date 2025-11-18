@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace PipeDreamMcp.Config;
+namespace PipeDream.Mcp.Config;
 
 /// <summary>
 /// Loads environment configuration from JSON files

@@ -1,8 +1,8 @@
 using System.Text.Json;
-using PipeDreamMcp.Common;
-using PipeDreamMcp.Dataverse;
+using PipeDream.Mcp.Common;
+using PipeDream.Mcp.Dataverse;
 
-namespace PipeDreamMcp.Protocol;
+namespace PipeDream.Mcp.Protocol;
 
 /// <summary>
 /// Handles MCP protocol message exchange via stdin/stdout

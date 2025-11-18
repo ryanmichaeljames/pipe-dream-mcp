@@ -2,17 +2,19 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>0.1.0</Version>
+    <AssemblyName>PipeDream.Mcp</AssemblyName>
+    <RootNamespace>PipeDream.Mcp</RootNamespace>
     
     <!-- NuGet Package Metadata -->
-    <PackageId>PipeDreamMcp</PackageId>
+    <PackageId>PipeDream.Mcp</PackageId>
     <Title>PipeDream MCP</Title>
     <Authors>Ryan James</Authors>
-    <Description>Model Context Protocol server for read-only access to Microsoft Dataverse and Azure DevOps</Description>
-    <PackageTags>mcp;dataverse;powerplatform;devops;copilot;model-context-protocol</PackageTags>
+    <Description>Model Context Protocol server for Microsoft Dataverse and Azure DevOps</Description>
+    <PackageTags>mcp;dataverse;powerplatform;devops;copilot;model-context-protocol;pipedream</PackageTags>
     <PackageProjectUrl>https://github.com/ryanmichaeljames/pipe-dream-mcp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ryanmichaeljames/pipe-dream-mcp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -21,7 +23,7 @@
     
     <!-- Global Tool Configuration -->
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>pipe-dream-mcp</ToolCommandName>
+    <ToolCommandName>pipedream-mcp</ToolCommandName>
     <PackageOutputPath>../../nupkg</PackageOutputPath>
   </PropertyGroup>
 

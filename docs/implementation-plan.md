@@ -68,8 +68,16 @@ Build Model Context Protocol (MCP) server in C# for Dataverse access with Azure 
   - [x] Validate all error scenarios (missing config, invalid entity tested)
   - [ ] Update documentation with real examples (pending final task)
 
+### 🔄 In Progress
+- [ ] **Phase 6: Release & Distribution** (80% - 5/6 tasks complete)
+  - [x] Configure `.csproj` for NuGet global tool packaging
+  - [x] Create GitHub Actions workflow for automated publishing
+  - [x] Create release documentation (RELEASE.md)
+  - [x] Test local pack (PipeDreamMcp.0.1.0.nupkg created)
+  - [x] Update README with installation instructions
+  - [ ] Add `NUGET_API_KEY` to GitHub secrets and publish first release
+
 ### 📋 Pending
-- [ ] Phase 6: Release & Distribution
 - [ ] Phase 7: DevOps Integration (Future)
 
 ---

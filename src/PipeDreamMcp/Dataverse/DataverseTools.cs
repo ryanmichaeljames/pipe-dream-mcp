@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using PipeDreamMcp.Protocol;
+using PipeDream.Mcp.Protocol;
 
-namespace PipeDreamMcp.Dataverse;
+namespace PipeDream.Mcp.Dataverse;
 
 /// <summary>
 /// MCP tool definitions for Dataverse operations

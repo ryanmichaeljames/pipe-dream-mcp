@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PipeDreamMcp.Protocol;
+namespace PipeDream.Mcp.Protocol;
 
 /// <summary>
 /// Base JSON-RPC message structure for MCP protocol

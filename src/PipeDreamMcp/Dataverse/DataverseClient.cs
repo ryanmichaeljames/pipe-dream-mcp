@@ -1,10 +1,10 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
-using PipeDreamMcp.Auth;
-using PipeDreamMcp.Common;
-using PipeDreamMcp.Config;
+using PipeDream.Mcp.Auth;
+using PipeDream.Mcp.Common;
+using PipeDream.Mcp.Config;
 
-namespace PipeDreamMcp.Dataverse;
+namespace PipeDream.Mcp.Dataverse;
 
 /// <summary>
 /// Client for read-only operations against Microsoft Dataverse Web API

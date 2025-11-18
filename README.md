@@ -15,30 +15,37 @@ PipeDream MCP enables AI agents (like GitHub Copilot) to interact with Microsoft
 
 ## Prerequisites
 
-- .NET 8.0 SDK - [Download](https://dotnet.microsoft.com/download/dotnet/8.0)
+- .NET 10.0 SDK - [Download](https://dotnet.microsoft.com/download/dotnet/10.0)
 - Azure CLI - [Install](https://learn.microsoft.com/cli/azure/install-azure-cli)
 - Azure subscription with Dataverse access
 - Run `az login` to authenticate
 
 ## Installation
 
+### Option 1: .NET Global Tool (Recommended)
+
+```powershell
+# Install globally
+dotnet tool install --global PipeDream.Mcp
+
+# Verify installation
+pipedream-mcp --version
+
+# Update to latest version
+dotnet tool update --global PipeDream.Mcp
+```
+
+### Option 2: Build from Source
+
 ```powershell
 git clone https://github.com/ryanmichaeljames/pipe-dream-mcp.git
 cd pipe-dream-mcp
 
-# Publish self-contained executable
-dotnet publish src/PipeDreamMcp/PipeDreamMcp.csproj `
-  -c Release `
-  -r win-x64 `
-  --self-contained true `
-  -p:PublishSingleFile=true `
-  -o C:/tools/pipe-dream-mcp
+# Run directly
+dotnet run --project src/PipeDreamMcp -- --dataverse-url https://your-org.crm.dynamics.com/
 
-# Create config directory
-mkdir C:/tools/pipe-dream-mcp/config
-
-# Verify installation
-C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --version
+# Or build and publish
+dotnet publish src/PipeDreamMcp/PipeDreamMcp.csproj -c Release -o ./publish
 ```
 
 ## Configuration
@@ -50,9 +57,9 @@ Configure directly in VS Code's `mcp.json` - no separate config files needed:
 ```json
 {
   "servers": {
-    "pipe-dream": {
+    "pipedream": {
       "type": "stdio",
-      "command": "C:/tools/pipe-dream-mcp/PipeDreamMcp.exe",
+      "command": "pipedream-mcp",
       "args": [
         "--dataverse-url",
         "https://your-org.crm.dynamics.com/"
@@ -86,10 +93,10 @@ Use with `--config-file` parameter:
 ```json
 {
   "servers": {
-    "pipe-dream-prod": {
+    "pipedream-prod": {
       "type": "stdio",
-      "command": "C:/tools/pipe-dream-mcp/PipeDreamMcp.exe",
-      "args": ["--config-file", "C:/tools/pipe-dream-mcp/config/prod.json"]
+      "command": "pipedream-mcp",
+      "args": ["--config-file", "C:/configs/prod.json"]
     }
   }
 }
@@ -113,23 +120,23 @@ az login
 
 3. Reload VS Code (`Ctrl+Shift+P` → "Developer: Reload Window")
 
-4. Use in Copilot Chat: `#pipe-dream What Dataverse entities are available?`
+4. Use in Copilot Chat: `#pipedream What Dataverse entities are available?`
 
 ### Command Line
 
 **Inline configuration:**
 ```powershell
-C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --dataverse-url https://your-org.crm.dynamics.com/
+pipedream-mcp --dataverse-url https://your-org.crm.dynamics.com/
 ```
 
 **Config file:**
 ```powershell
-C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --config-file C:/configs/prod.json
+pipedream-mcp --config-file C:/configs/prod.json
 ```
 
 **Help:**
 ```powershell
-C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --help
+pipedream-mcp --help
 ```
 
 ## Available Tools

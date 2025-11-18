@@ -1,4 +1,4 @@
-namespace PipeDreamMcp.Common;
+namespace PipeDream.Mcp.Common;
 
 /// <summary>
 /// Validates input parameters for MCP tool calls

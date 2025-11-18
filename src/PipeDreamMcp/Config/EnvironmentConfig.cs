@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace PipeDreamMcp.Config;
+namespace PipeDream.Mcp.Config;
 
 /// <summary>
 /// Configuration for a specific environment (dev/test/prod)

@@ -1,7 +1,7 @@
 using Azure.Core;
 using Azure.Identity;
 
-namespace PipeDreamMcp.Auth;
+namespace PipeDream.Mcp.Auth;
 
 /// <summary>
 /// Provides Azure authentication using Azure CLI credentials

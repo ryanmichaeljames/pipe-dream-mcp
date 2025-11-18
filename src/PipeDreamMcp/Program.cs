@@ -1,9 +1,9 @@
 ﻿using System.Reflection;
-using PipeDreamMcp.Auth;
-using PipeDreamMcp.Config;
-using PipeDreamMcp.Protocol;
+using PipeDream.Mcp.Auth;
+using PipeDream.Mcp.Config;
+using PipeDream.Mcp.Protocol;
 
-namespace PipeDreamMcp;
+namespace PipeDream.Mcp;
 
 class Program
 {
@@ -154,21 +154,26 @@ class Program
             switch (args[i])
             {
                 case "--dataverse-url" when i + 1 < args.Length:
+                case "-u" when i + 1 < args.Length:
                     options.DataverseUrl = args[++i];
                     break;
                 case "--config-file" when i + 1 < args.Length:
+                case "-c" when i + 1 < args.Length:
                     options.ConfigFile = args[++i];
                     break;
                 case "--api-version" when i + 1 < args.Length:
+                case "-a" when i + 1 < args.Length:
                     options.ApiVersion = args[++i];
                     break;
                 case "--timeout" when i + 1 < args.Length:
+                case "-t" when i + 1 < args.Length:
                     if (int.TryParse(args[++i], out int timeout))
                     {
                         options.Timeout = timeout;
                     }
                     break;
                 case "--version":
+                case "-v":
                     options.ShowVersion = true;
                     break;
                 case "--help":
@@ -190,20 +195,20 @@ class Program
         Console.WriteLine("  pipe-dream-mcp --config-file <path>");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  --dataverse-url <url>   Dataverse instance URL (inline config)");
-        Console.WriteLine("  --api-version <ver>     API version (default: v9.2)");
-        Console.WriteLine("  --timeout <seconds>     Request timeout (default: 30)");
-        Console.WriteLine("  --config-file <path>    Path to config JSON file");
-        Console.WriteLine("  --version               Show version information");
-        Console.WriteLine("  --help, -h              Show this help message");
+        Console.WriteLine("  --dataverse-url, -u <url>   Dataverse instance URL (inline config)");
+        Console.WriteLine("  --api-version, -a <ver>     API version (default: v9.2)");
+        Console.WriteLine("  --timeout, -t <seconds>     Request timeout (default: 30)");
+        Console.WriteLine("  --config-file, -c <path>    Path to config JSON file");
+        Console.WriteLine("  --version, -v               Show version information");
+        Console.WriteLine("  --help, -h                  Show this help message");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  Inline configuration:");
-        Console.WriteLine("    pipe-dream-mcp --dataverse-url https://org.crm.dynamics.com/");
-        Console.WriteLine("    pipe-dream-mcp --dataverse-url https://org.crm.dynamics.com/ --timeout 60");
+        Console.WriteLine("    pipe-dream-mcp -u https://org.crm.dynamics.com/");
+        Console.WriteLine("    pipe-dream-mcp -u https://org.crm.dynamics.com/ -t 60");
         Console.WriteLine();
         Console.WriteLine("  Config file:");
-        Console.WriteLine("    pipe-dream-mcp --config-file C:/configs/prod.json");
+        Console.WriteLine("    pipe-dream-mcp -c C:/configs/prod.json");
     }
 
     private class CommandLineOptions
