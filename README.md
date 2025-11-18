@@ -1,6 +1,6 @@
-# PipeDream MCP
+![PipeDream Logo](/assets/logo_banner.png)
 
-Model Context Protocol (MCP) server for Microsoft Dataverse and Azure DevOps (coming soon).
+> Model Context Protocol (MCP) server for Microsoft Dataverse and Azure DevOps (coming soon).
 
 ## Overview
 
