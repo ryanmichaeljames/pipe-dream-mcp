@@ -17,7 +17,7 @@ You are implementing a Model Context Protocol (MCP) server in C# for access to M
 ---
 
 ## Technology Stack
-- **.NET 8.0** - Target framework
+- **.NET 10.0** - Target framework
 - **Azure.Identity** - For Azure CLI credential (`AzureCliCredential`)
 - **System.Text.Json** - JSON serialization
 - **Microsoft.Extensions.Configuration** - Config file loading
@@ -238,7 +238,7 @@ curl -H "Authorization: Bearer $token" https://org.crm.dynamics.com/api/data/v9.
 
 The README should include:
 - **Project overview** - Brief description of the MCP server and its purpose
-- **Prerequisites** - Required tools (az CLI, .NET 8, active Azure subscription)
+- **Prerequisites** - Required tools (az CLI, .NET 10, active Azure subscription)
 - **Installation** - Step-by-step setup instructions
 - **Configuration** - How to set up environment config files
 - **Usage** - How to run the server and configure in VS Code
