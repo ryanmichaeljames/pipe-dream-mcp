@@ -132,7 +132,7 @@ Why: Self-documenting, validates parameters automatically
   "github.copilot.chat.mcp.servers": {
     "pipe-dream-dev": {
       "command": "dotnet",
-      "args": ["run", "--project", "c:/repo/ryanmichaeljames/pipe-dream-mcp/src/PipeDreamMcp", "--environment", "dev"]
+      "args": ["run", "--project", "c:/repo/ryanmichaeljames/pipe-dream-mcp/src/PipeDream.Mcp", "--environment", "dev"]
     }
   }
 }
@@ -181,7 +181,7 @@ Always use here-strings (`@' ... '@`) for JSON messages. PowerShell treats semic
 $msg = @'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"dataverse_query","arguments":{"entity":"solutions","select":["uniquename","friendlyname"],"filter":"ismanaged eq false","top":10}}}
 '@
-$msg | dotnet run --project src/PipeDreamMcp -- --environment dev
+$msg | dotnet run --project src/PipeDream.Mcp -- --environment dev
 ```
 
 ### Check Azure CLI Auth

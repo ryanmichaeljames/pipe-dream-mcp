@@ -43,10 +43,10 @@ git clone https://github.com/ryanmichaeljames/pipe-dream-mcp.git
 cd pipe-dream-mcp
 
 # Run directly
-dotnet run --project src/PipeDreamMcp -- --dataverse-url https://your-org.crm.dynamics.com/
+dotnet run --project src/PipeDream.Mcp -- --dataverse-url https://your-org.crm.dynamics.com/
 
 # Or build and publish
-dotnet publish src/PipeDreamMcp/PipeDreamMcp.csproj -c Release -o ./publish
+dotnet publish src/PipeDream.Mcp/PipeDream.Mcp.csproj -c Release -o ./publish
 ./publish/PipeDream.Mcp --dataverse-url https://your-org.crm.dynamics.com/
 ```
 
