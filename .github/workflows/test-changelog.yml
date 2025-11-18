@@ -25,7 +25,7 @@ jobs:
     - name: Extract release notes from CHANGELOG
       id: changelog
       run: |
-        VERSION="${{ github.event.inputs.version }}"
+        VERSION="v0.1.0"
         echo "Extracting notes for version: $VERSION"
         
         # Extract content between version headers
