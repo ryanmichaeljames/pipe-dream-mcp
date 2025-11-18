@@ -1,0 +1,43 @@
+name: Test Changelog Extraction
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to extract (e.g., v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Extract release notes from CHANGELOG
+      id: changelog
+      run: |
+        VERSION="${{ github.event.inputs.version }}"
+        echo "Extracting notes for version: $VERSION"
+        
+        # Extract content between version headers
+        NOTES=$(awk "/## \[${VERSION#v}\]/,/## \[/" CHANGELOG.md | sed '1d;$d')
+        
+        echo "=== Extracted Notes ==="
+        echo "$NOTES"
+        echo "======================="
+        
+        # Save to output
+        echo "notes<<EOF" >> $GITHUB_OUTPUT
+        echo "$NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+      
+    - name: Display extracted notes
+      run: |
+        echo "Notes output:"
+        echo "${{ steps.changelog.outputs.notes }}"
