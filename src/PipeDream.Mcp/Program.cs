@@ -95,7 +95,7 @@ class Program
             {
                 using var httpClient = new HttpClient();
                 httpClient.Timeout = TimeSpan.FromSeconds(5);
-                var response = await httpClient.GetAsync(config.Dataverse.Url);
+                await httpClient.GetAsync(config.Dataverse.Url);
                 Console.Error.WriteLine($"Dataverse endpoint is reachable");
             }
             catch (HttpRequestException ex)
