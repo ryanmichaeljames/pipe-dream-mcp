@@ -372,17 +372,16 @@ public class McpServer
     {
         if (_dataverseClient == null)
             throw new InvalidOperationException("Dataverse client not configured");
-        if (arguments == null)
-            throw new ArgumentException("Arguments parameter required", nameof(arguments));
+
         try
         {
-            var entity = arguments.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
+            var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
             InputValidator.ValidateEntityName(entity);
             
-            var pageSize = arguments.TryGetProperty("pageSize", out var pageSizeProp) ? pageSizeProp.GetInt32() : 50;
+            var pageSize = arguments.Value.TryGetProperty("pageSize", out var pageSizeProp) ? pageSizeProp.GetInt32() : 50;
             var validatedPageSize = InputValidator.ValidatePageSize(pageSize);
             
-            var pagingCookie = arguments.TryGetProperty("pagingCookie", out var cookieProp) ? cookieProp.GetString() : null;
+            var pagingCookie = arguments.Value.TryGetProperty("pagingCookie", out var cookieProp) ? cookieProp.GetString() : null;
 
             var result = await _dataverseClient.ListAsync(entity, validatedPageSize, pagingCookie, cancellationToken);
             return result.RootElement.GetRawText();

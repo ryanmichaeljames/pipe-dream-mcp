@@ -88,11 +88,12 @@ public static class InputValidator
 
         // Check for potentially dangerous patterns (basic security check)
         var dangerousPatterns = new[] { "--", "/*", "*/", "xp_", "sp_", "exec(", "execute(" };
-        foreach (var pattern in dangerousPatterns)
-        {
-            if (filter.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException($"Filter expression contains disallowed pattern: {pattern}");
-        }
+        var foundPattern = dangerousPatterns
+            .Where(pattern => filter.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+
+        if (foundPattern != null)
+            throw new ArgumentException($"Filter expression contains disallowed pattern: {foundPattern}");
     }
 
     /// <summary>
