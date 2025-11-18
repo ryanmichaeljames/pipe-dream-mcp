@@ -110,7 +110,7 @@ class Program
 
             // Create and run MCP server
             var server = new McpServer(dataverseClient);
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
 
             // Handle Ctrl+C gracefully
             Console.CancelKeyPress += (sender, e) =>
