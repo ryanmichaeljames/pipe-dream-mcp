@@ -154,8 +154,10 @@ public class PropertySchema
     public string Type { get; set; } = string.Empty;
 
     [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; set; }
 
     [JsonPropertyName("items")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PropertySchema? Items { get; set; }
 }

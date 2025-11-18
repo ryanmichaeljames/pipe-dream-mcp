@@ -29,25 +29,47 @@ class Program
                 return 0;
             }
 
-            if (string.IsNullOrWhiteSpace(options.Environment))
+            // Load or build configuration
+            EnvironmentConfig config;
+            
+            if (!string.IsNullOrWhiteSpace(options.DataverseUrl))
             {
-                Console.Error.WriteLine("Error: --environment parameter is required");
-                Console.Error.WriteLine("Usage: pipe-dream-mcp --environment <dev|test|prod>");
+                // Inline configuration via command-line arguments
+                Console.Error.WriteLine($"Using inline configuration");
+                config = new EnvironmentConfig
+                {
+                    Environment = "inline",
+                    Dataverse = new DataverseConfig
+                    {
+                        Url = options.DataverseUrl,
+                        ApiVersion = options.ApiVersion ?? "v9.2",
+                        Timeout = options.Timeout ?? 30
+                    }
+                };
+            }
+            else if (!string.IsNullOrWhiteSpace(options.ConfigFile))
+            {
+                // Direct config file path
+                Console.Error.WriteLine($"Loading configuration from: {options.ConfigFile}");
+                var configLoader = new ConfigLoader();
+                config = configLoader.LoadFromFile(options.ConfigFile);
+                Console.Error.WriteLine($"Configuration loaded successfully");
+            }
+            else
+            {
+                Console.Error.WriteLine("Error: Either --dataverse-url or --config-file must be specified");
+                Console.Error.WriteLine("Usage:");
+                Console.Error.WriteLine("  pipe-dream-mcp --dataverse-url <url>");
+                Console.Error.WriteLine("  pipe-dream-mcp --config-file <path>");
                 Console.Error.WriteLine("Run 'pipe-dream-mcp --help' for more information");
                 return 1;
             }
 
-            // Load configuration
-            Console.Error.WriteLine($"Loading configuration for environment: {options.Environment}");
-            var configLoader = new ConfigLoader(options.ConfigDirectory);
-            var config = configLoader.LoadEnvironment(options.Environment);
-            Console.Error.WriteLine($"Configuration loaded successfully");
-
             // Validate Dataverse configuration
-            if (config.Dataverse == null)
+            if (config.Dataverse == null || string.IsNullOrWhiteSpace(config.Dataverse.Url))
             {
-                Console.Error.WriteLine("Error: Dataverse configuration is missing");
-                Console.Error.WriteLine($"Please add 'dataverse' section to config file for environment '{options.Environment}'");
+                Console.Error.WriteLine("Error: Dataverse URL is required");
+                Console.Error.WriteLine("Specify via --dataverse-url or in config file");
                 return 1;
             }
 
@@ -96,7 +118,7 @@ class Program
             };
 
             Console.Error.WriteLine("MCP server started - ready to accept requests");
-            Console.Error.WriteLine($"Environment: {options.Environment}");
+            Console.Error.WriteLine($"Environment: {config.Environment}");
             Console.Error.WriteLine($"Dataverse URL: {config.Dataverse.Url}");
             Console.Error.WriteLine("Press Ctrl+C to stop");
             
@@ -131,11 +153,20 @@ class Program
         {
             switch (args[i])
             {
-                case "--environment" when i + 1 < args.Length:
-                    options.Environment = args[++i];
+                case "--dataverse-url" when i + 1 < args.Length:
+                    options.DataverseUrl = args[++i];
                     break;
-                case "--config-dir" when i + 1 < args.Length:
-                    options.ConfigDirectory = args[++i];
+                case "--config-file" when i + 1 < args.Length:
+                    options.ConfigFile = args[++i];
+                    break;
+                case "--api-version" when i + 1 < args.Length:
+                    options.ApiVersion = args[++i];
+                    break;
+                case "--timeout" when i + 1 < args.Length:
+                    if (int.TryParse(args[++i], out int timeout))
+                    {
+                        options.Timeout = timeout;
+                    }
                     break;
                 case "--version":
                     options.ShowVersion = true;
@@ -155,29 +186,32 @@ class Program
         Console.WriteLine("pipe-dream-mcp - Model Context Protocol server for Dataverse and DevOps");
         Console.WriteLine();
         Console.WriteLine("Usage:");
-        Console.WriteLine("  pipe-dream-mcp --environment <name> [options]");
+        Console.WriteLine("  pipe-dream-mcp --dataverse-url <url> [options]");
+        Console.WriteLine("  pipe-dream-mcp --config-file <path>");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  --environment <name>    Environment to use (required: dev, test, prod, etc.)");
-        Console.WriteLine("  --config-dir <path>     Config directory path (optional)");
+        Console.WriteLine("  --dataverse-url <url>   Dataverse instance URL (inline config)");
+        Console.WriteLine("  --api-version <ver>     API version (default: v9.2)");
+        Console.WriteLine("  --timeout <seconds>     Request timeout (default: 30)");
+        Console.WriteLine("  --config-file <path>    Path to config JSON file");
         Console.WriteLine("  --version               Show version information");
         Console.WriteLine("  --help, -h              Show this help message");
         Console.WriteLine();
         Console.WriteLine("Examples:");
-        Console.WriteLine("  pipe-dream-mcp --environment dev");
-        Console.WriteLine("  pipe-dream-mcp --environment prod --config-dir C:/custom/configs");
+        Console.WriteLine("  Inline configuration:");
+        Console.WriteLine("    pipe-dream-mcp --dataverse-url https://org.crm.dynamics.com/");
+        Console.WriteLine("    pipe-dream-mcp --dataverse-url https://org.crm.dynamics.com/ --timeout 60");
         Console.WriteLine();
-        Console.WriteLine("Config file location priority:");
-        Console.WriteLine("  1. --config-dir argument");
-        Console.WriteLine("  2. PIPE_DREAM_MCP_CONFIG environment variable");
-        Console.WriteLine("  3. ~/.pipe-dream-mcp/config/");
-        Console.WriteLine("  4. ./config/");
+        Console.WriteLine("  Config file:");
+        Console.WriteLine("    pipe-dream-mcp --config-file C:/configs/prod.json");
     }
 
     private class CommandLineOptions
     {
-        public string? Environment { get; set; }
-        public string? ConfigDirectory { get; set; }
+        public string? DataverseUrl { get; set; }
+        public string? ConfigFile { get; set; }
+        public string? ApiVersion { get; set; }
+        public int? Timeout { get; set; }
         public bool ShowVersion { get; set; }
         public bool ShowHelp { get; set; }
     }

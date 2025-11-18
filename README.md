@@ -1,15 +1,15 @@
 # PipeDream MCP
 
-Model Context Protocol (MCP) server for read-only access to Microsoft Dataverse and Azure DevOps.
+Model Context Protocol (MCP) server for Microsoft Dataverse and Azure DevOps.
 
 ## Overview
 
-PipeDream MCP enables AI agents (like GitHub Copilot) to safely query Microsoft Dataverse using Azure CLI authentication.
+PipeDream MCP enables AI agents (like GitHub Copilot) to interact with Microsoft Dataverse using Azure CLI authentication.
 
 **Key Features:**
-- Read-only operations (query, retrieve, list, metadata)
+- Dataverse operations (query, retrieve, list, metadata)
 - Azure CLI authentication with token caching
-- Multi-environment support (dev/test/prod)
+- Simple configuration (inline or config file)
 - OData query capabilities
 - Production-ready error handling
 
@@ -43,16 +43,54 @@ C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --version
 
 ## Configuration
 
-Create environment config files in `C:/tools/pipe-dream-mcp/config/`:
+### Quick Start: Inline Configuration (Recommended)
 
-**config/dev.json:**
+Configure directly in VS Code's `mcp.json` - no separate config files needed:
+
 ```json
 {
-  "environment": "dev",
+  "servers": {
+    "pipe-dream": {
+      "type": "stdio",
+      "command": "C:/tools/pipe-dream-mcp/PipeDreamMcp.exe",
+      "args": [
+        "--dataverse-url",
+        "https://your-org.crm.dynamics.com/"
+      ]
+    }
+  }
+}
+```
+
+**Optional arguments:**
+- `--api-version v9.2` - API version (default: v9.2)
+- `--timeout 60` - Request timeout in seconds (default: 30)
+
+### Alternative: File-Based Configuration
+
+Create config files for specific environments:
+
+**config/prod.json:**
+```json
+{
+  "environment": "prod",
   "dataverse": {
     "url": "https://your-org.crm.dynamics.com",
     "apiVersion": "v9.2",
     "timeout": 30
+  }
+}
+```
+
+Use with `--config-file` parameter:
+```json
+{
+  "servers": {
+    "pipe-dream-prod": {
+      "type": "stdio",
+      "command": "C:/tools/pipe-dream-mcp/PipeDreamMcp.exe",
+      "args": ["--config-file", "C:/tools/pipe-dream-mcp/config/prod.json"]
+    }
   }
 }
 ```
@@ -71,26 +109,27 @@ az login
    - **macOS**: `~/Library/Application Support/Code/User/mcp.json`
    - **Linux**: `~/.config/Code/User/mcp.json`
 
-2. Add server configuration:
-```json
-{
-  "servers": {
-    "pipe-dream-dev": {
-      "type": "stdio",
-      "command": "C:/tools/pipe-dream-mcp/PipeDreamMcp.exe",
-      "args": ["--environment", "dev"]
-    }
-  }
-}
-```
+2. Add server configuration (see Configuration section above)
 
 3. Reload VS Code (`Ctrl+Shift+P` → "Developer: Reload Window")
-4. Use in Copilot Chat: `#pipe-dream-dev What Dataverse entities are available?`
+
+4. Use in Copilot Chat: `#pipe-dream What Dataverse entities are available?`
 
 ### Command Line
 
+**Inline configuration:**
 ```powershell
-C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --environment dev
+C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --dataverse-url https://your-org.crm.dynamics.com/
+```
+
+**Config file:**
+```powershell
+C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --config-file C:/configs/prod.json
+```
+
+**Help:**
+```powershell
+C:/tools/pipe-dream-mcp/PipeDreamMcp.exe --help
 ```
 
 ## Available Tools

@@ -7,34 +7,28 @@ namespace PipeDreamMcp.Config;
 /// </summary>
 public class ConfigLoader
 {
-    private readonly string _configDirectory;
-
-    public ConfigLoader(string? configDirectory = null)
+    public ConfigLoader()
     {
-        _configDirectory = configDirectory ?? GetDefaultConfigDirectory();
-        LogToStderr($"Config directory: {_configDirectory}");
     }
 
     /// <summary>
-    /// Load configuration for specified environment
+    /// Load configuration from a specific file path
     /// </summary>
-    public EnvironmentConfig LoadEnvironment(string environmentName)
+    public EnvironmentConfig LoadFromFile(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(environmentName))
+        if (string.IsNullOrWhiteSpace(filePath))
         {
-            throw new ArgumentException("Environment name cannot be empty", nameof(environmentName));
+            throw new ArgumentException("File path cannot be empty", nameof(filePath));
         }
 
-        var configPath = Path.Combine(_configDirectory, $"{environmentName}.json");
-        
-        if (!File.Exists(configPath))
+        if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"Config file not found: {configPath}. Please create it or use --config-dir to specify location.");
+            throw new FileNotFoundException($"Config file not found: {filePath}");
         }
 
-        LogToStderr($"Loading config: {configPath}");
+        LogToStderr($"Loading config: {filePath}");
 
-        var json = File.ReadAllText(configPath);
+        var json = File.ReadAllText(filePath);
         var config = JsonSerializer.Deserialize<EnvironmentConfig>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -44,7 +38,7 @@ public class ConfigLoader
 
         if (config == null)
         {
-            throw new InvalidOperationException($"Failed to parse config file: {configPath}");
+            throw new InvalidOperationException($"Failed to parse config file: {filePath}");
         }
 
         ValidateConfig(config);
@@ -86,41 +80,9 @@ public class ConfigLoader
     }
 
     /// <summary>
-    /// Get default configuration directory
-    /// Priority: PIPE_DREAM_MCP_CONFIG env var > ~/.pipe-dream-mcp/config > ./config
-    /// </summary>
-    private static string GetDefaultConfigDirectory()
-    {
-        // Check environment variable
-        var envPath = Environment.GetEnvironmentVariable("PIPE_DREAM_MCP_CONFIG");
-        if (!string.IsNullOrWhiteSpace(envPath) && Directory.Exists(envPath))
-        {
-            return envPath;
-        }
-
-        // Check user profile directory
-        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var userConfigPath = Path.Combine(userProfile, ".pipe-dream-mcp", "config");
-        if (Directory.Exists(userConfigPath))
-        {
-            return userConfigPath;
-        }
-
-        // Fallback to current directory
-        var localConfigPath = Path.Combine(Directory.GetCurrentDirectory(), "config");
-        if (Directory.Exists(localConfigPath))
-        {
-            return localConfigPath;
-        }
-
-        // Default to local config (will fail later if not exists)
-        return localConfigPath;
-    }
-
-    /// <summary>
     /// Log to stderr for debugging
     /// </summary>
-    private void LogToStderr(string message)
+    private static void LogToStderr(string message)
     {
         Console.Error.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] ConfigLoader: {message}");
     }

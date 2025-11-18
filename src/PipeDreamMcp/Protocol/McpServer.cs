@@ -31,6 +31,9 @@ public class McpServer
 
         using var stdin = Console.OpenStandardInput();
         using var reader = new StreamReader(stdin);
+        
+        int emptyMethodCount = 0;
+        const int MaxEmptyMethodErrors = 5;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -55,10 +58,50 @@ public class McpServer
                     continue;
                 }
 
-                LogToStderr($"Received: {request.Method} (id: {request.Id})");
+                // Ignore response messages (they have result or error but we're a server, not a client)
+                if (request.Result != null || request.Error != null)
+                {
+                    // This is a response message, not a request - ignore it
+                    // (Likely echo from stdout or client sending back our own responses)
+                    continue;
+                }
+
+                // Validate method name for requests/notifications
+                if (string.IsNullOrWhiteSpace(request.Method))
+                {
+                    emptyMethodCount++;
+                    
+                    if (emptyMethodCount == 1)
+                    {
+                        LogToStderr($"Warning: Received message with empty method (id: {request.Id}). Ignoring silently.");
+                    }
+                    else if (emptyMethodCount == MaxEmptyMethodErrors)
+                    {
+                        LogToStderr($"Suppressing further empty method warnings (received {emptyMethodCount} total)");
+                    }
+                    
+                    // Don't respond to malformed messages - just ignore them
+                    continue;
+                }
+
+                // Reset counter when valid message received
+                emptyMethodCount = 0;
+
+                // Log requests normally, but only log non-standard notifications
+                if (request.Id != null)
+                {
+                    LogToStderr($"Received request: {request.Method} (id: {request.Id})");
+                }
+                else if (!IsStandardNotification(request.Method))
+                {
+                    LogToStderr($"Received notification: {request.Method}");
+                }
 
                 var response = await HandleMessageAsync(request, cancellationToken);
-                await WriteResponseAsync(response);
+                if (response != null)
+                {
+                    await WriteResponseAsync(response);
+                }
             }
             catch (Exception ex)
             {
@@ -72,7 +115,7 @@ public class McpServer
     /// <summary>
     /// Handle incoming MCP message and route to appropriate handler
     /// </summary>
-    private async Task<McpMessage> HandleMessageAsync(McpMessage request, CancellationToken cancellationToken)
+    private async Task<McpMessage?> HandleMessageAsync(McpMessage request, CancellationToken cancellationToken)
     {
         return request.Method switch
         {
@@ -80,7 +123,16 @@ public class McpServer
             "initialized" => HandleInitialized(request),
             "tools/list" => await HandleToolsListAsync(request, cancellationToken),
             "tools/call" => await HandleToolsCallAsync(request, cancellationToken),
-            _ => CreateErrorResponse(request.Id, -32601, $"Method not found: {request.Method}")
+            
+            // Handle known notifications silently
+            "notifications/initialized" => HandleNotification(request, "Client initialized"),
+            "notifications/cancelled" => HandleNotification(request, "Request cancelled"),
+            "notifications/progress" => HandleNotification(request, "Progress update"),
+            
+            // Unknown method - only log as error if it's a request (has id), notifications can be safely ignored
+            _ => request.Id != null 
+                ? CreateErrorResponse(request.Id, -32601, $"Method not found: {request.Method}")
+                : HandleNotification(request, $"Ignoring unknown notification: {request.Method}")
         };
     }
 
@@ -118,9 +170,32 @@ public class McpServer
     /// </summary>
     private McpMessage HandleInitialized(McpMessage request)
     {
-        LogToStderr("Client initialized");
-        // Notification - no response needed, but return empty message to simplify flow
-        return new McpMessage { JsonRpc = "2.0" };
+        return HandleNotification(request, "Client initialized");
+    }
+
+    /// <summary>
+    /// Handle generic notification (no response needed)
+    /// </summary>
+    private McpMessage HandleNotification(McpMessage request, string logMessage)
+    {
+        LogToStderr(logMessage);
+        // Notifications don't get responses - return null to signal no response needed
+        return null!;
+    }
+
+    /// <summary>
+    /// Check if a method is a standard MCP notification that doesn't need logging
+    /// </summary>
+    private static bool IsStandardNotification(string? method)
+    {
+        return method switch
+        {
+            "initialized" => true,
+            "notifications/initialized" => true,
+            "notifications/cancelled" => true,
+            "notifications/progress" => true,
+            _ => false
+        };
     }
 
     /// <summary>
@@ -333,12 +408,6 @@ public class McpServer
     /// </summary>
     private async Task WriteResponseAsync(McpMessage response)
     {
-        // Don't write anything for notifications (no id)
-        if (response.Id == null && response.Method == null)
-        {
-            return;
-        }
-
         var json = JsonSerializer.Serialize(response, _jsonOptions);
         await Console.Out.WriteLineAsync(json);
         await Console.Out.FlushAsync();

@@ -58,8 +58,17 @@ Build Model Context Protocol (MCP) server in C# for Dataverse access with Azure 
   - [x] Successful queries tested (10 unmanaged solutions returned)
   - [x] Metadata queries tested (full entity list returned)
 
+### 🔄 In Progress
+- [ ] **Phase 5: Integration & Testing** (85% - 6/7 tasks complete)
+  - [x] Wire all components for end-to-end integration (Program.cs enhanced)
+  - [x] Add startup validation checks (config, auth, connectivity, graceful shutdown)
+  - [x] Implement graceful shutdown handling (Ctrl+C handler, clean exit messages)
+  - [ ] Test VS Code GitHub Copilot integration (settings documented, pending user configuration)
+  - [x] Test multi-environment switching (dev/test/teaureka-coredev validated)
+  - [x] Validate all error scenarios (missing config, invalid entity tested)
+  - [ ] Update documentation with real examples (pending final task)
+
 ### 📋 Pending
-- [ ] Phase 5: Integration & Testing
 - [ ] Phase 6: Release & Distribution
 - [ ] Phase 7: DevOps Integration (Future)
 
@@ -225,17 +234,84 @@ pipe-dream-mcp/
 
 ---
 
-### Phase 5: Integration & Testing
+### Phase 5: Integration & Testing (IN PROGRESS - 95%)
 **Goal**: Wire all components and validate end-to-end
 
-**Tasks**:
-1. Integrate auth, config, and Dataverse client in `Program.cs`
-2. Add startup validation (az CLI, config, network)
-3. Implement graceful shutdown
-4. End-to-end testing from VS Code Copilot
-5. Update documentation with usage examples
+**Status**: 6.5/7 tasks complete
 
-**Deliverable**: Fully functional MCP server ready for distribution
+**Completed Tasks**:
+1. ✅ Wire all components for end-to-end integration
+   - Program.cs enhanced with all Phase 1-4 components
+   - Auth, config, Dataverse client all integrated
+   - Startup validation chain implemented
+2. ✅ Add startup validation checks
+   - Configuration loading with clear messages
+   - Azure CLI authentication verification (token expiration displayed)
+   - Network connectivity test to Dataverse endpoint (5-second timeout)
+   - Environment summary displayed on startup
+3. ✅ Implement graceful shutdown handling
+   - Console.CancelKeyPress handler for Ctrl+C
+   - "Shutting down gracefully..." message
+   - "MCP server stopped" message on clean exit
+   - stdin close detection with clean shutdown
+
+**Completed Tasks (continued)**:
+4. ✅ Test multi-environment switching
+   - Created test.json config (https://teaureka-test.crm6.dynamics.com)
+   - Verified dev.json config (https://test-org.crm.dynamics.com)
+   - Tested teaureka-coredev.json config (https://teaureka-coredev.crm6.dynamics.com)
+   - Environment flag switches correctly: `--environment dev|test|teaureka-coredev`
+   - Each environment isolated with different URLs and settings
+   - Network connectivity test adapts per environment (warns if unreachable)
+5. ✅ Validate all error scenarios
+   - Missing config file: Clear error "Config file not found: ...nonexistent.json"
+   - Invalid entity name: "Entity name contains invalid characters (use only letters, numbers, and underscores): invalid@entity"
+   - Network failure: "Warning: Cannot reach Dataverse endpoint: No such host is known. (test-org.crm.dynamics.com:443)"
+   - All errors return actionable guidance and proper exit codes
+
+**Completed Tasks**:
+6. ✅ Test VS Code GitHub Copilot integration
+   - ✅ VS Code MCP settings documented in README
+   - ✅ User configured mcp.json with pipe-dream-teaureka-coredev server
+   - ✅ All 4 Dataverse tools discovered successfully
+   - ✅ Tool execution verified through manual testing
+   - ✅ Notification handling refined: `notifications/initialized` processed silently (no errors)
+   - ✅ Production-ready logging: Standard notifications suppressed, only meaningful logs shown
+
+**Pending Tasks**:
+7. ⏳ Update documentation with real examples (80% complete)
+   - ✅ README simplified for easy consumption
+   - ✅ PowerShell escaping guidance documented (copilot-instructions.md)
+   - ⏸️ Add VS Code integration troubleshooting guide
+   - ⏸️ Document notification handling behavior
+   - ⏸️ Add real usage examples from VS Code testing
+
+**Test Results**:
+- ✅ Startup validation working: All phases logged correctly
+- ✅ Configuration loaded: teaureka-coredev.json
+- ✅ Auth verified: Token expires in 72.6 minutes
+- ✅ Connectivity test: Dataverse endpoint reachable
+- ✅ Query test: Retrieved 5 unmanaged solutions successfully
+- ✅ Graceful shutdown: Clean exit with proper messages
+- ✅ Exit code: 0 (success)
+- ✅ Multi-environment switching:
+  - dev: https://test-org.crm.dynamics.com (unreachable, warning shown)
+  - test: https://teaureka-test.crm6.dynamics.com (reachable)
+  - teaureka-coredev: https://teaureka-coredev.crm6.dynamics.com (reachable, verified queries)
+- ✅ Error scenarios validated:
+  - Missing config: "Config file not found" error with helpful path
+  - Invalid entity: "Entity name contains invalid characters" with clear guidance
+- ✅ VS Code integration verified:
+  - Server starts successfully with clean output
+  - 4 tools discovered: dataverse_query, dataverse_retrieve, dataverse_metadata, dataverse_list
+  - Authentication working (token lifetime displayed)
+  - Connectivity confirmed to Dataverse endpoint
+- ✅ Notification handling refined:
+  - Standard notifications (initialized, cancelled, progress) handled silently
+  - No "Method not found" errors for known notifications
+  - Clean, production-ready logging output
+
+**Deliverable**: Fully functional MCP server ready for distribution (Phase 5: 95% complete)
 
 ---
 
