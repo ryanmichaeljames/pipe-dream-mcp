@@ -127,17 +127,10 @@ public class DataverseClient
     {
         await EnsureAuthenticatedAsync(cancellationToken);
 
-        string endpoint;
-        if (!string.IsNullOrWhiteSpace(entityLogicalName))
-        {
-            // Get metadata for specific entity
-            endpoint = $"/api/data/{_config.ApiVersion}/EntityDefinitions(LogicalName='{entityLogicalName}')?$select=LogicalName,DisplayName,PrimaryIdAttribute,PrimaryNameAttribute&$expand=Attributes($select=LogicalName,DisplayName,AttributeType)";
-        }
-        else
-        {
-            // List all entities
-            endpoint = $"/api/data/{_config.ApiVersion}/EntityDefinitions?$select=LogicalName,DisplayName,PrimaryIdAttribute,PrimaryNameAttribute";
-        }
+        // Get metadata for specific entity or list all entities
+        string endpoint = !string.IsNullOrWhiteSpace(entityLogicalName)
+            ? $"/api/data/{_config.ApiVersion}/EntityDefinitions(LogicalName='{entityLogicalName}')?$select=LogicalName,DisplayName,PrimaryIdAttribute,PrimaryNameAttribute&$expand=Attributes($select=LogicalName,DisplayName,AttributeType)"
+            : $"/api/data/{_config.ApiVersion}/EntityDefinitions?$select=LogicalName,DisplayName,PrimaryIdAttribute,PrimaryNameAttribute";
 
         Console.Error.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DataverseClient: Metadata {endpoint}");
 
