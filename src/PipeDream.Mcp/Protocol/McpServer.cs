@@ -316,7 +316,7 @@ public class McpServer
             var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
             InputValidator.ValidateEntityName(entity);
             
-            var idString = arguments.Value.GetProperty("id").GetString() ?? throw new ArgumentException("id parameter required");
+            var idString = arguments?.GetProperty("id").GetString() ?? throw new ArgumentException("id parameter required");
             var id = InputValidator.ValidateGuid(idString, "id");
             
             var select = arguments.Value.TryGetProperty("select", out var selectProp)
