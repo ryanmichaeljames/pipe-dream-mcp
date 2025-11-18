@@ -29,7 +29,7 @@ jobs:
         echo "Extracting notes for version: $VERSION"
         
         # Extract content between version headers (from current version to next version or end)
-        NOTES=$(awk "/## \[${VERSION#v}\]/{flag=1; next} /## \[/{flag=0} flag" CHANGELOG.md)
+        NOTES=$(awk "/## \[${VERSION#v}\]/{flag=1; next} /## \[/{flag=0} flag" CHANGELOG.md | grep -v "^\[")
         
         echo "=== Extracted Notes ==="
         echo "$NOTES"
