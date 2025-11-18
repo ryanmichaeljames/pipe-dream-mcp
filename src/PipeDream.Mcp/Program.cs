@@ -98,9 +98,14 @@ class Program
                 var response = await httpClient.GetAsync(config.Dataverse.Url);
                 Console.Error.WriteLine($"Dataverse endpoint is reachable");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.Error.WriteLine($"Warning: Cannot reach Dataverse endpoint: {ex.Message}");
+                Console.Error.WriteLine("Continuing anyway - will retry with backoff if needed");
+            }
+            catch (TaskCanceledException ex)
+            {
+                Console.Error.WriteLine($"Warning: Dataverse connectivity test timed out: {ex.Message}");
                 Console.Error.WriteLine("Continuing anyway - will retry with backoff if needed");
             }
 
