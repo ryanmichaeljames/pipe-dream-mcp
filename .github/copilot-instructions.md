@@ -234,9 +234,17 @@ Why: Self-documenting, validates parameters automatically
 ## Debugging Tips
 
 ### Test MCP Protocol Manually
+
+**IMPORTANT: PowerShell String Escaping**
+
+Always use here-strings (`@' ... '@`) for JSON messages. PowerShell treats semicolons (`;`) as command separators, which breaks JSON containing filters or complex arguments.
+
 ```powershell
-# Send initialize message
-'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | dotnet run --project src/PipeDreamMcp -- --environment dev
+# Use here-strings to avoid escaping issues
+$msg = @'
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"dataverse_query","arguments":{"entity":"solutions","select":["uniquename","friendlyname"],"filter":"ismanaged eq false","top":10}}}
+'@
+$msg | dotnet run --project src/PipeDreamMcp -- --environment dev
 ```
 
 ### Check Azure CLI Auth

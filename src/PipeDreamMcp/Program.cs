@@ -38,8 +38,18 @@ class Program
             }
 
             // Load configuration
+            Console.Error.WriteLine($"Loading configuration for environment: {options.Environment}");
             var configLoader = new ConfigLoader(options.ConfigDirectory);
             var config = configLoader.LoadEnvironment(options.Environment);
+            Console.Error.WriteLine($"Configuration loaded successfully");
+
+            // Validate Dataverse configuration
+            if (config.Dataverse == null)
+            {
+                Console.Error.WriteLine("Error: Dataverse configuration is missing");
+                Console.Error.WriteLine($"Please add 'dataverse' section to config file for environment '{options.Environment}'");
+                return 1;
+            }
 
             // Initialize authentication
             var authProvider = new AzureAuthProvider();
@@ -54,12 +64,24 @@ class Program
                 return 1;
             }
 
-            // Initialize Dataverse client if configured
-            Dataverse.DataverseClient? dataverseClient = null;
-            if (config.Dataverse != null)
+            // Test network connectivity to Dataverse
+            Console.Error.WriteLine($"Testing connectivity to {config.Dataverse.Url}...");
+            try
             {
-                dataverseClient = new Dataverse.DataverseClient(authProvider, config.Dataverse);
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromSeconds(5);
+                var response = await httpClient.GetAsync(config.Dataverse.Url);
+                Console.Error.WriteLine($"Dataverse endpoint is reachable");
             }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Warning: Cannot reach Dataverse endpoint: {ex.Message}");
+                Console.Error.WriteLine("Continuing anyway - will retry with backoff if needed");
+            }
+
+            // Initialize Dataverse client
+            var dataverseClient = new Dataverse.DataverseClient(authProvider, config.Dataverse);
+            Console.Error.WriteLine("Dataverse client initialized");
 
             // Create and run MCP server
             var server = new McpServer(dataverseClient);
@@ -69,10 +91,18 @@ class Program
             Console.CancelKeyPress += (sender, e) =>
             {
                 e.Cancel = true;
+                Console.Error.WriteLine("\nShutting down gracefully...");
                 cts.Cancel();
             };
 
+            Console.Error.WriteLine("MCP server started - ready to accept requests");
+            Console.Error.WriteLine($"Environment: {options.Environment}");
+            Console.Error.WriteLine($"Dataverse URL: {config.Dataverse.Url}");
+            Console.Error.WriteLine("Press Ctrl+C to stop");
+            
             await server.RunAsync(cts.Token);
+            
+            Console.Error.WriteLine("MCP server stopped");
             return 0;
         }
         catch (FileNotFoundException ex)
