@@ -54,8 +54,15 @@ class Program
                 return 1;
             }
 
+            // Initialize Dataverse client if configured
+            Dataverse.DataverseClient? dataverseClient = null;
+            if (config.Dataverse != null)
+            {
+                dataverseClient = new Dataverse.DataverseClient(authProvider, config.Dataverse);
+            }
+
             // Create and run MCP server
-            var server = new McpServer();
+            var server = new McpServer(dataverseClient);
             var cts = new CancellationTokenSource();
 
             // Handle Ctrl+C gracefully

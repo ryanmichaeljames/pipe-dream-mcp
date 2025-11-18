@@ -24,8 +24,18 @@ Build Model Context Protocol (MCP) server in C# for Dataverse access with Azure 
   - [x] Config files created (dev/test/prod)
   - [x] Auth flow verified with Azure CLI
 
-### 🚧 In Progress
-- [ ] **Phase 3: Dataverse Client & Tools** (0%)
+### ✅ Completed (continued)
+- [x] **Phase 3: Dataverse Client & Tools** (100%)
+  - [x] DataverseClient created with HttpClient
+  - [x] QueryAsync method (OData queries)
+  - [x] RetrieveAsync method (get by ID)
+  - [x] GetMetadataAsync method (entity metadata)
+  - [x] ListAsync method (pagination)
+  - [x] DataverseTools with 4 MCP tool definitions
+  - [x] Tools registered in McpServer tools/list
+  - [x] tools/call handler routes to DataverseClient
+  - [x] DataverseClient wired into Program.cs
+  - [x] Tests updated and passing (3/3)
 
 ### 📋 Pending
 - [ ] Phase 4: Error Handling & Resilience

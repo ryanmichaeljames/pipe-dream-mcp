@@ -1,4 +1,5 @@
 using System.Text.Json;
+using PipeDreamMcp.Dataverse;
 
 namespace PipeDreamMcp.Protocol;
 
@@ -8,9 +9,11 @@ namespace PipeDreamMcp.Protocol;
 public class McpServer
 {
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly DataverseClient? _dataverseClient;
 
-    public McpServer()
+    public McpServer(DataverseClient? dataverseClient = null)
     {
+        _dataverseClient = dataverseClient;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -75,6 +78,7 @@ public class McpServer
             "initialize" => await HandleInitializeAsync(request, cancellationToken),
             "initialized" => HandleInitialized(request),
             "tools/list" => await HandleToolsListAsync(request, cancellationToken),
+            "tools/call" => await HandleToolsCallAsync(request, cancellationToken),
             _ => CreateErrorResponse(request.Id, -32601, $"Method not found: {request.Method}")
         };
     }
@@ -125,9 +129,15 @@ public class McpServer
     {
         LogToStderr("Handling tools/list request");
 
+        var tools = new List<ToolDefinition>();
+        if (_dataverseClient != null)
+        {
+            tools.AddRange(DataverseTools.All);
+        }
+
         var result = new ToolsListResult
         {
-            Tools = new List<ToolDefinition>()
+            Tools = tools
         };
 
         return Task.FromResult(new McpMessage
@@ -136,6 +146,103 @@ public class McpServer
             Id = request.Id,
             Result = result
         });
+    }
+
+    /// <summary>
+    /// Handle tools/call request
+    /// </summary>
+    private async Task<McpMessage> HandleToolsCallAsync(McpMessage request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var paramsJson = JsonSerializer.Serialize(request.Params, _jsonOptions);
+            var callParams = JsonSerializer.Deserialize<ToolCallParams>(paramsJson, _jsonOptions);
+
+            if (callParams == null || string.IsNullOrWhiteSpace(callParams.Name))
+            {
+                return CreateErrorResponse(request.Id, -32602, "Invalid tool call parameters");
+            }
+
+            LogToStderr($"Handling tools/call: {callParams.Name}");
+
+            // Route to appropriate handler based on tool name
+            var result = callParams.Name switch
+            {
+                "dataverse_query" => await HandleDataverseQueryAsync(callParams.Arguments, cancellationToken),
+                "dataverse_retrieve" => await HandleDataverseRetrieveAsync(callParams.Arguments, cancellationToken),
+                "dataverse_metadata" => await HandleDataverseMetadataAsync(callParams.Arguments, cancellationToken),
+                "dataverse_list" => await HandleDataverseListAsync(callParams.Arguments, cancellationToken),
+                _ => throw new InvalidOperationException($"Unknown tool: {callParams.Name}")
+            };
+
+            return new McpMessage
+            {
+                JsonRpc = "2.0",
+                Id = request.Id,
+                Result = new { content = new[] { new { type = "text", text = result } } }
+            };
+        }
+        catch (Exception ex)
+        {
+            LogToStderr($"Error in tools/call: {ex.Message}");
+            return CreateErrorResponse(request.Id, -32603, $"Tool execution error: {ex.Message}");
+        }
+    }
+
+    private async Task<string> HandleDataverseQueryAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    {
+        if (_dataverseClient == null)
+            throw new InvalidOperationException("Dataverse client not configured");
+
+        var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
+        var select = arguments.Value.TryGetProperty("select", out var selectProp) 
+            ? selectProp.EnumerateArray().Select(e => e.GetString()!).ToArray() 
+            : null;
+        var filter = arguments.Value.TryGetProperty("filter", out var filterProp) ? filterProp.GetString() : null;
+        var top = arguments.Value.TryGetProperty("top", out var topProp) ? topProp.GetInt32() : (int?)null;
+
+        var result = await _dataverseClient.QueryAsync(entity, select, filter, top, cancellationToken);
+        return result.RootElement.GetRawText();
+    }
+
+    private async Task<string> HandleDataverseRetrieveAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    {
+        if (_dataverseClient == null)
+            throw new InvalidOperationException("Dataverse client not configured");
+
+        var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
+        var idString = arguments.Value.GetProperty("id").GetString() ?? throw new ArgumentException("id parameter required");
+        var id = Guid.Parse(idString);
+        var select = arguments.Value.TryGetProperty("select", out var selectProp)
+            ? selectProp.EnumerateArray().Select(e => e.GetString()!).ToArray()
+            : null;
+
+        var result = await _dataverseClient.RetrieveAsync(entity, id, select, cancellationToken);
+        return result.RootElement.GetRawText();
+    }
+
+    private async Task<string> HandleDataverseMetadataAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    {
+        if (_dataverseClient == null)
+            throw new InvalidOperationException("Dataverse client not configured");
+
+        var entity = arguments?.TryGetProperty("entity", out var entityProp) == true ? entityProp.GetString() : null;
+
+        var result = await _dataverseClient.GetMetadataAsync(entity, cancellationToken);
+        return result.RootElement.GetRawText();
+    }
+
+    private async Task<string> HandleDataverseListAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    {
+        if (_dataverseClient == null)
+            throw new InvalidOperationException("Dataverse client not configured");
+
+        var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
+        var pageSize = arguments.Value.TryGetProperty("pageSize", out var pageSizeProp) ? pageSizeProp.GetInt32() : 50;
+        var pagingCookie = arguments.Value.TryGetProperty("pagingCookie", out var cookieProp) ? cookieProp.GetString() : null;
+
+        var result = await _dataverseClient.ListAsync(entity, pageSize, pagingCookie, cancellationToken);
+        return result.RootElement.GetRawText();
     }
 
     /// <summary>
