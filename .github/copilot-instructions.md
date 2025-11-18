@@ -5,7 +5,7 @@ applyTo: '**/*'
 # MCP Server Implementation Instructions
 
 ## Context
-You are implementing a Model Context Protocol (MCP) server in C# for read-only access to Microsoft Dataverse and Azure DevOps. The server uses Azure CLI authentication and supports multiple environments.
+You are implementing a Model Context Protocol (MCP) server in C# for access to Microsoft Dataverse and Azure DevOps. The server uses Azure CLI authentication and supports multiple environments.
 
 ## Core Principles
 
@@ -13,7 +13,6 @@ You are implementing a Model Context Protocol (MCP) server in C# for read-only a
 2. **Keep it simple** - Prefer clarity over cleverness
 3. **AI-friendly code** - Clear naming, single responsibility, minimal abstraction
 4. **Fail fast** - Validate early, provide clear error messages
-5. **Read-only operations only** - No create, update, or delete for safety
 
 ---
 
@@ -60,65 +59,6 @@ catch (HttpRequestException ex) {
 - Use strongly-typed config classes
 - Validate all required fields present
 - Log config used (except secrets)
-
----
-
-## Implementation Workflow
-
-### Phase 1: MCP Protocol Foundation
-**Build order:**
-1. Create console project + solution
-2. Add JSON message reader/writer (stdio)
-3. Implement `initialize` handler → **Test with manual JSON input**
-4. Implement `tools/list` handler → **Test returns empty list**
-5. Add logging to stderr → **Verify logs appear**
-
-**Test:** Pipe JSON messages, verify responses
-
-### Phase 2: Auth & Config
-**Build order:**
-1. Create config JSON files (dev/test/prod)
-2. Create `EnvironmentConfig` class → **Test loads dev.json**
-3. Create `AzureAuthProvider` → **Test gets token**
-4. Add CLI arg parsing → **Test --environment flag**
-5. Wire into startup → **Test full auth flow**
-
-**Test:** Run with `--environment dev`, verify token acquired
-
-### Phase 3: Dataverse Client (Read-Only)
-**Build order:**
-1. Create `DataverseClient` with HttpClient → **Test connection**
-2. Implement `Query` method (OData) → **Test simple query**
-3. Implement `Retrieve` method (get by ID) → **Test get record**
-4. Implement `Metadata` method (list entities) → **Test list entities**
-5. Add error handling → **Test invalid queries**
-
-**Important:** Only implement read operations (GET requests). No POST, PATCH, DELETE.
-
-**Test each method:** Use actual Dataverse dev environment
-
-### Phase 4: MCP Tool Registration
-**Build order:**
-1. Create `DataverseTools` class with tool schemas (query, retrieve, metadata, list)
-2. Register tools in `tools/list` → **Test returns tools**
-3. Implement `tools/call` router → **Test calls Query**
-4. Map parameters to client methods → **Test all tools**
-5. Format responses as MCP content (JSON) → **Test response structure**
-
-**Tool Names:**
-- `dataverse_query` - OData queries
-- `dataverse_retrieve` - Get record by ID
-- `dataverse_metadata` - List entities/attributes
-- `dataverse_list` - Browse entity collections
-
-**Test:** Manual tool calls via JSON messages
-
-### Phase 5: Integration
-**Build order:**
-1. Wire all components in `Program.cs`
-2. Add startup validation (az CLI, config, network)
-3. Add graceful shutdown
-4. Full end-to-end test → **Test from VS Code Copilot**
 
 ---
 
@@ -222,9 +162,6 @@ Why: Self-documenting, validates parameters automatically
 
 ❌ **Don't** assume az CLI is logged in
 ✅ **Do** validate and provide helpful error messages
-
-❌ **Don't** implement write operations (create/update/delete)
-✅ **Do** only implement read operations (query/retrieve/list)
 
 ❌ **Don't** use Console.WriteLine for logging
 ✅ **Do** write logs to stderr (Console.Error.WriteLine)

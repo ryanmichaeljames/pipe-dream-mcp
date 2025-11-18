@@ -1,17 +1,18 @@
 # PipeDream MCP
 
-Model Context Protocol (MCP) server for Microsoft Dataverse and Azure DevOps.
+Model Context Protocol (MCP) server for Microsoft Dataverse and Azure DevOps (coming soon).
 
 ## Overview
 
-PipeDream MCP enables AI agents (like GitHub Copilot) to interact with Microsoft Dataverse using Azure CLI authentication.
+PipeDream MCP enables AI agents (like GitHub Copilot) to interact with Microsoft Dataverse using Azure CLI authentication. This MCP server provides secure access to Dataverse data through a standardized protocol interface.
 
 **Key Features:**
-- Dataverse operations (query, retrieve, list, metadata)
-- Azure CLI authentication with token caching
-- Simple configuration (inline or config file)
-- OData query capabilities
-- Production-ready error handling
+- **Dataverse operations** - Query, retrieve, list, metadata, and more
+- **Azure CLI authentication** - Secure token-based auth with automatic caching and refresh
+- **Flexible configuration** - Inline arguments or JSON config files
+- **OData query support** - Full filtering, selection, and pagination capabilities
+- **Production-ready** - Comprehensive error handling, retry logic with exponential backoff, and input validation
+- **MCP protocol compliant** - Implements MCP 2024-11-05 specification
 
 ## Prerequisites
 
@@ -46,13 +47,14 @@ dotnet run --project src/PipeDreamMcp -- --dataverse-url https://your-org.crm.dy
 
 # Or build and publish
 dotnet publish src/PipeDreamMcp/PipeDreamMcp.csproj -c Release -o ./publish
+./publish/PipeDream.Mcp --dataverse-url https://your-org.crm.dynamics.com/
 ```
 
 ## Configuration
 
 ### Quick Start: Inline Configuration (Recommended)
 
-Configure directly in VS Code's `mcp.json` - no separate config files needed:
+Configure directly in VS Code's MCP settings - no separate config files needed:
 
 ```json
 {
@@ -70,8 +72,8 @@ Configure directly in VS Code's `mcp.json` - no separate config files needed:
 ```
 
 **Optional arguments:**
-- `--api-version v9.2` - API version (default: v9.2)
-- `--timeout 60` - Request timeout in seconds (default: 30)
+- `--api-version` or `-a` - API version (default: v9.2)
+- `--timeout` or `-t` - Request timeout in seconds (default: 30)
 
 ### Alternative: File-Based Configuration
 
@@ -124,6 +126,17 @@ az login
 
 ### Command Line
 
+**Show help (or run with no arguments):**
+```powershell
+pipedream-mcp
+pipedream-mcp --help
+```
+
+**Show version:**
+```powershell
+pipedream-mcp --version
+```
+
 **Inline configuration:**
 ```powershell
 pipedream-mcp --dataverse-url https://your-org.crm.dynamics.com/
@@ -131,48 +144,53 @@ pipedream-mcp --dataverse-url https://your-org.crm.dynamics.com/
 
 **Config file:**
 ```powershell
-pipedream-mcp --config-file C:/configs/prod.json
+pipedream-mcp --config-file C:/configs/your-org.json
 ```
 
-**Help:**
-```powershell
-pipedream-mcp --help
-```
+**Optional parameters:**
+- `--api-version` or `-a` - API version (default: v9.2)
+- `--timeout` or `-t` - Request timeout in seconds (default: 30)
 
 ## Available Tools
 
 ### `dataverse_query`
-Execute OData queries against Dataverse entities.
+Execute OData queries against Dataverse entities with flexible filtering and selection.
 
 **Parameters:**
-- `entity` (required) - Entity logical name
-- `select` (optional) - Array of field names
-- `filter` (optional) - OData filter expression
-- `top` (optional) - Maximum records to return
+- `entity` (required) - Entity logical name (e.g., "account", "contact")
+- `select` (optional) - Array of field names to return
+- `filter` (optional) - OData filter expression (e.g., "statecode eq 0")
+- `top` (optional) - Maximum records to return (1-5000, default: 50)
+
+**Example:** Query active accounts with specific fields
 
 ### `dataverse_retrieve`
-Retrieve a single record by ID.
+Retrieve a single record by its unique identifier.
 
 **Parameters:**
 - `entity` (required) - Entity logical name
-- `id` (required) - Record GUID
-- `select` (optional) - Array of field names
+- `id` (required) - Record GUID in standard format
+- `select` (optional) - Array of field names to return
+
+**Example:** Get specific account by ID
 
 ### `dataverse_metadata`
-Get metadata about Dataverse entities.
+Get comprehensive metadata about Dataverse entities and their attributes.
 
 **Parameters:**
-- `entity` (optional) - Specific entity (omit for all)
+- `entity` (optional) - Specific entity logical name (omit to list all entities)
+
+**Example:** Get schema information for troubleshooting or discovery
 
 ### `dataverse_list`
-List records with pagination.
+List records with server-side pagination for efficient data browsing.
 
 **Parameters:**
 - `entity` (required) - Entity logical name
-- `pageSize` (optional) - Records per page (default: 50, max: 250)
-- `pagingCookie` (optional) - Paging token from previous response
+- `pageSize` (optional) - Records per page (1-250, default: 50)
+- `pagingCookie` (optional) - Paging token from previous response for next page
 
-
+**Example:** Browse records in manageable pages
 
 ## Contributing
 
