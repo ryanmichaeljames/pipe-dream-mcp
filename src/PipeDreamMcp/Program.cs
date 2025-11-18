@@ -14,7 +14,8 @@ class Program
             // Parse command line arguments
             var options = ParseArguments(args);
             
-            if (options.ShowHelp)
+            // Show help if no arguments provided or help flag used
+            if (args.Length == 0 || options.ShowHelp)
             {
                 ShowHelp();
                 return 0;
@@ -25,7 +26,9 @@ class Program
                 var version = Assembly.GetExecutingAssembly()
                     .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
                     ?.InformationalVersion ?? "unknown";
-                Console.WriteLine($"pipe-dream-mcp v{version}");
+                var frameworkVersion = Environment.Version;
+                Console.WriteLine("PipeDream MCP");
+                Console.WriteLine($"Version: {version} (.NET {frameworkVersion})");
                 return 0;
             }
 
@@ -188,11 +191,20 @@ class Program
 
     private static void ShowHelp()
     {
-        Console.WriteLine("pipe-dream-mcp - Model Context Protocol server for Dataverse and DevOps");
+        var version = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion ?? "unknown";
+        
+        var frameworkVersion = Environment.Version;
+        
+        Console.WriteLine("PipeDream MCP");
+        Console.WriteLine($"Version: {version} (.NET {frameworkVersion})");
+        Console.WriteLine("Online documentation: https://github.com/ryanmichaeljames/pipe-dream-mcp");
+        Console.WriteLine("Feedback, Suggestions, Issues: https://github.com/ryanmichaeljames/pipe-dream-mcp/issues");
         Console.WriteLine();
         Console.WriteLine("Usage:");
-        Console.WriteLine("  pipe-dream-mcp --dataverse-url <url> [options]");
-        Console.WriteLine("  pipe-dream-mcp --config-file <path>");
+        Console.WriteLine("  pipedream-mcp --dataverse-url <url> [options]");
+        Console.WriteLine("  pipedream-mcp --config-file <path>");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --dataverse-url, -u <url>   Dataverse instance URL (inline config)");
@@ -204,11 +216,11 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  Inline configuration:");
-        Console.WriteLine("    pipe-dream-mcp -u https://org.crm.dynamics.com/");
-        Console.WriteLine("    pipe-dream-mcp -u https://org.crm.dynamics.com/ -t 60");
+        Console.WriteLine("    pipedream-mcp -u https://org.crm.dynamics.com/");
+        Console.WriteLine("    pipedream-mcp -u https://org.crm.dynamics.com/ -t 60");
         Console.WriteLine();
         Console.WriteLine("  Config file:");
-        Console.WriteLine("    pipe-dream-mcp -c C:/configs/prod.json");
+        Console.WriteLine("    pipedream-mcp -c C:/configs/prod.json");
     }
 
     private class CommandLineOptions
