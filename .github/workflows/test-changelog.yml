@@ -24,21 +24,39 @@ jobs:
       
     - name: Extract release notes from CHANGELOG
       id: changelog
+      shell: pwsh
       run: |
-        VERSION="v0.1.0"
-        echo "Extracting notes for version: $VERSION"
+        $VERSION = "v0.1.0"
+        Write-Host "Extracting notes for version: $VERSION"
         
-        # Extract content between version headers (from current version to next version or end)
-        NOTES=$(awk "/## \[${VERSION#v}\]/{flag=1; next} /## \[/{flag=0} flag" CHANGELOG.md | grep -v "^\[")
+        # Extract content between version headers
+        $versionNumber = $VERSION.TrimStart('v')
+        $content = Get-Content CHANGELOG.md
+        $capture = $false
+        $notes = @()
         
-        echo "=== Extracted Notes ==="
-        echo "$NOTES"
-        echo "======================="
+        foreach ($line in $content) {
+          if ($line -match "^## \[$versionNumber\]") {
+            $capture = $true
+            continue
+          }
+          if ($capture -and $line -match "^## \[") {
+            break
+          }
+          if ($capture -and $line -notmatch "^\[") {
+            $notes += $line
+          }
+        }
+        
+        $notesText = $notes -join "`n"
+        Write-Host "=== Extracted Notes ==="
+        Write-Host $notesText
+        Write-Host "======================="
         
         # Save to output
-        echo "notes<<EOF" >> $GITHUB_OUTPUT
-        echo "$NOTES" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        "notes<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        $notesText | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
       
     - name: Display extracted notes
       run: |
