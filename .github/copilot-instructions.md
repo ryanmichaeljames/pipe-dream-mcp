@@ -122,7 +122,7 @@ Why: Self-documenting, validates parameters automatically
 - [ ] tools/call executes dataverse_query successfully
 - [ ] Invalid tool call returns proper error
 - [ ] Auth token acquired from az CLI
-- [ ] Config switches with --environment flag
+- [ ] Config file loading with --config-file flag
 - [ ] Dataverse API calls work with real environment
 
 ### Manual Test from VS Code GitHub Copilot
@@ -132,7 +132,7 @@ Why: Self-documenting, validates parameters automatically
   "github.copilot.chat.mcp.servers": {
     "pipe-dream-dev": {
       "command": "dotnet",
-      "args": ["run", "--project", "c:/repo/ryanmichaeljames/pipe-dream-mcp/src/PipeDream.Mcp", "--environment", "dev"]
+      "args": ["run", "--project", "c:/repo/ryanmichaeljames/pipe-dream-mcp/src/PipeDream.Mcp", "--config-file", "c:/configs/dev.json"]
     }
   }
 }
@@ -181,7 +181,7 @@ Always use here-strings (`@' ... '@`) for JSON messages. PowerShell treats semic
 $msg = @'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"dataverse_query","arguments":{"entity":"solutions","select":["uniquename","friendlyname"],"filter":"ismanaged eq false","top":10}}}
 '@
-$msg | dotnet run --project src/PipeDream.Mcp -- --environment dev
+$msg | dotnet run --project src/PipeDream.Mcp -- --config-file configs/dev.json
 ```
 
 ### Check Azure CLI Auth
