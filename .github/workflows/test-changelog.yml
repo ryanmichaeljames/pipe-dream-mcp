@@ -48,7 +48,7 @@ jobs:
           }
         }
         
-        $notesText = $notes -join "`n"
+        $notesText = ($notes -join "`n").Trim()
         Write-Host "=== Extracted Notes ==="
         Write-Host $notesText
         Write-Host "======================="
