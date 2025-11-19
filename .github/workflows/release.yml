@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v0.1.0
+
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Pack
+      run: dotnet pack src/PipeDream.Mcp/PipeDream.Mcp.csproj --configuration Release --no-build --output ./nupkg
+      
+    - name: Publish to NuGet
+      run: dotnet nuget push ./nupkg/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+      
+    - name: Extract release notes from CHANGELOG
+      id: changelog
+      shell: pwsh
+      run: |
+        $VERSION = "${{ github.ref_name }}"
+        # Extract content between version headers
+        $versionNumber = $VERSION.TrimStart('v')
+        $content = Get-Content CHANGELOG.md
+        $capture = $false
+        $notes = @()
+        
+        foreach ($line in $content) {
+          if ($line -match "^## \[$versionNumber\]") {
+            $capture = $true
+            continue
+          }
+          if ($capture -and $line -match "^## \[") {
+            break
+          }
+          if ($capture -and $line -notmatch "^\[") {
+            $notes += $line
+          }
+        }
+        
+        $notesText = ($notes -join "`n").Trim()
+        # Handle multi-line content for GitHub Actions
+        "notes<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        $notesText | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./nupkg/*.nupkg
+        body: ${{ steps.changelog.outputs.notes }}
+        generate_release_notes: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

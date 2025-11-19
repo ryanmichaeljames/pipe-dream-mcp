@@ -1,4 +1,9 @@
-![PipeDream Logo](/assets/logo_banner.png)
+![PipeDream Logo](https://raw.githubusercontent.com/ryanmichaeljames/pipe-dream-mcp/main/assets/logo_banner.png)
+
+![GitHub Release](https://img.shields.io/github/v/release/ryanmichaeljames/pipe-dream-mcp?style=flat&logo=github&color=33CE57)
+![NuGet Version](https://img.shields.io/nuget/v/PipeDream.Mcp?logo=nuget&color=33CE57)
+[![Build](https://github.com/ryanmichaeljames/pipe-dream-mcp/actions/workflows/build.yml/badge.svg)](https://github.com/ryanmichaeljames/pipe-dream-mcp/actions/workflows/build.yml)
+[![CodeQL](https://github.com/ryanmichaeljames/pipe-dream-mcp/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ryanmichaeljames/pipe-dream-mcp/actions/workflows/github-code-scanning/codeql)
 
 > Model Context Protocol (MCP) server for Microsoft Dataverse and Azure DevOps (coming soon).
 
