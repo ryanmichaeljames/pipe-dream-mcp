@@ -15,6 +15,7 @@ PipeDream MCP enables AI agents (like GitHub Copilot) to interact with Microsoft
 - **Dataverse operations** - Query, retrieve, list, metadata, and more
 - **Azure CLI authentication** - Secure token-based auth with automatic caching and refresh
 - **Flexible configuration** - Inline arguments or JSON config files
+- **Safety controls** - Opt-in flags for write and delete operations (default: disabled)
 - **OData query support** - Full filtering, selection, and pagination capabilities
 - **Production-ready** - Comprehensive error handling, retry logic with exponential backoff, and input validation
 - **MCP protocol compliant** - Implements MCP 2024-11-05 specification
@@ -55,12 +56,115 @@ dotnet publish src/PipeDream.Mcp/PipeDream.Mcp.csproj -c Release -o ./publish
 ./publish/PipeDream.Mcp --dataverse-url https://your-org.crm.dynamics.com/
 ```
 
-## Configuration
+## Quick Start
 
-### Quick Start: Inline Configuration (Recommended)
+1. **Authenticate with Azure CLI:**
+   ```powershell
+   az login
+   ```
 
-Configure directly in VS Code's MCP settings - no separate config files needed:
+2. **Configure VS Code MCP settings** (`%APPDATA%\Code\User\mcp.json` on Windows):
+   ```json
+   {
+     "servers": {
+       "pipedream": {
+         "type": "stdio",
+         "command": "pipedream-mcp",
+         "args": [
+           "--dataverse-url",
+           "https://your-org.crm.dynamics.com/"
+         ]
+       }
+     }
+   }
+   ```
 
+3. **Reload VS Code** (`Ctrl+Shift+P` → "Developer: Reload Window")
+
+4. **Use in Copilot Chat:** `#pipedream What Dataverse entities are available?`
+
+## Command Reference
+
+### Synopsis
+
+```
+pipedream-mcp --dataverse-url <url> [options]
+pipedream-mcp --config-file <path> [options]
+pipedream-mcp --help
+pipedream-mcp --version
+```
+
+### Parameters
+
+| Parameter | Alias | Required | Description | Default |
+|-----------|-------|----------|-------------|---------|
+| `--dataverse-url` | `-u` | Yes* | Dataverse instance URL | - |
+| `--config-file` | `-c` | Yes* | Path to JSON config file | - |
+| `--api-version` | `-a` | No | Dataverse Web API version | `v9.2` |
+| `--timeout` | `-t` | No | Request timeout (seconds) | `30` |
+| `--enable-write-operations` | - | No | Enable Create/Update operations | `false` |
+| `--enable-delete-operations` | - | No | Enable Delete operations | `false` |
+| `--help` | `-h` | No | Show help message | - |
+| `--version` | `-v` | No | Show version information | - |
+
+\* Either `--dataverse-url` or `--config-file` is required.
+
+### Examples
+
+**Basic usage with inline configuration:**
+```powershell
+pipedream-mcp --dataverse-url https://org.crm.dynamics.com/
+```
+
+**Enable write operations:**
+```powershell
+pipedream-mcp --dataverse-url https://org.crm.dynamics.com/ --enable-write-operations
+```
+
+**Enable both write and delete operations:**
+```powershell
+pipedream-mcp --dataverse-url https://org.crm.dynamics.com/ --enable-write-operations --enable-delete-operations
+```
+
+**Using a config file:**
+```powershell
+pipedream-mcp --config-file C:/configs/prod.json
+```
+
+**Override config file settings:**
+```powershell
+pipedream-mcp --config-file C:/configs/prod.json --enable-write-operations
+```
+
+### Configuration File Format
+
+Create JSON config files for reusable environment settings:
+
+```json
+{
+  "environment": "prod",
+  "dataverse": {
+    "url": "https://your-org.crm.dynamics.com",
+    "apiVersion": "v9.2",
+    "timeout": 30,
+    "enableWriteOperations": false,
+    "enableDeleteOperations": false
+  }
+}
+```
+
+**Note:** Command-line parameters always override config file values.
+
+### VS Code MCP Configuration
+
+Add to your VS Code MCP settings file:
+
+**Settings file location:**
+- **Windows**: `%APPDATA%\Code\User\mcp.json`
+- **macOS**: `~/Library/Application Support/Code/User/mcp.json`
+- **Linux**: `~/.config/Code/User/mcp.json`
+
+**Inline configuration (recommended):**
 ```json
 {
   "servers": {
@@ -68,35 +172,15 @@ Configure directly in VS Code's MCP settings - no separate config files needed:
       "type": "stdio",
       "command": "pipedream-mcp",
       "args": [
-        "--dataverse-url",
-        "https://your-org.crm.dynamics.com/"
+        "--dataverse-url", "https://your-org.crm.dynamics.com/",
+        "--enable-write-operations"
       ]
     }
   }
 }
 ```
 
-**Optional arguments:**
-- `--api-version` or `-a` - API version (default: v9.2)
-- `--timeout` or `-t` - Request timeout in seconds (default: 30)
-
-### Alternative: File-Based Configuration
-
-Create config files for specific environments:
-
-**config/prod.json:**
-```json
-{
-  "environment": "prod",
-  "dataverse": {
-    "url": "https://your-org.crm.dynamics.com",
-    "apiVersion": "v9.2",
-    "timeout": 30
-  }
-}
-```
-
-Use with `--config-file` parameter:
+**Config file approach:**
 ```json
 {
   "servers": {
@@ -108,53 +192,6 @@ Use with `--config-file` parameter:
   }
 }
 ```
-
-Ensure Azure CLI is authenticated:
-```powershell
-az login
-```
-
-## Usage
-
-### VS Code GitHub Copilot Integration
-
-1. Open VS Code user MCP settings:
-   - **Windows**: `%APPDATA%\Code\User\mcp.json`
-   - **macOS**: `~/Library/Application Support/Code/User/mcp.json`
-   - **Linux**: `~/.config/Code/User/mcp.json`
-
-2. Add server configuration (see Configuration section above)
-
-3. Reload VS Code (`Ctrl+Shift+P` → "Developer: Reload Window")
-
-4. Use in Copilot Chat: `#pipedream What Dataverse entities are available?`
-
-### Command Line
-
-**Show help (or run with no arguments):**
-```powershell
-pipedream-mcp
-pipedream-mcp --help
-```
-
-**Show version:**
-```powershell
-pipedream-mcp --version
-```
-
-**Inline configuration:**
-```powershell
-pipedream-mcp --dataverse-url https://your-org.crm.dynamics.com/
-```
-
-**Config file:**
-```powershell
-pipedream-mcp --config-file C:/configs/your-org.json
-```
-
-**Optional parameters:**
-- `--api-version` or `-a` - API version (default: v9.2)
-- `--timeout` or `-t` - Request timeout in seconds (default: 30)
 
 ## Available Tools
 

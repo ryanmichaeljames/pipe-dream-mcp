@@ -44,6 +44,7 @@ public class ConfigLoader
         ValidateConfig(config);
         
         LogToStderr($"Loaded environment: {config.Environment}");
+        LogConfigFlags(config);
         return config;
     }
 
@@ -85,5 +86,17 @@ public class ConfigLoader
     private static void LogToStderr(string message)
     {
         Console.Error.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] ConfigLoader: {message}");
+    }
+
+    /// <summary>
+    /// Log safety flag values for visibility
+    /// </summary>
+    private static void LogConfigFlags(EnvironmentConfig config)
+    {
+        if (config.Dataverse != null)
+        {
+            LogToStderr($"Dataverse Write Operations: {(config.Dataverse.EnableWriteOperations ? "ENABLED" : "DISABLED")}");
+            LogToStderr($"Dataverse Delete Operations: {(config.Dataverse.EnableDeleteOperations ? "ENABLED" : "DISABLED")}");
+        }
     }
 }

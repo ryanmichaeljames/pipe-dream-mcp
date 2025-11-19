@@ -46,7 +46,9 @@ class Program
                     {
                         Url = options.DataverseUrl,
                         ApiVersion = options.ApiVersion ?? "v9.2",
-                        Timeout = options.Timeout ?? 30
+                        Timeout = options.Timeout ?? 30,
+                        EnableWriteOperations = options.EnableWriteOperations,
+                        EnableDeleteOperations = options.EnableDeleteOperations
                     }
                 };
             }
@@ -57,6 +59,21 @@ class Program
                 var configLoader = new ConfigLoader();
                 config = configLoader.LoadFromFile(options.ConfigFile);
                 Console.Error.WriteLine($"Configuration loaded successfully");
+                
+                // Command-line flags override config file values
+                if (config.Dataverse != null)
+                {
+                    if (options.EnableWriteOperations)
+                    {
+                        Console.Error.WriteLine("Command-line override: EnableWriteOperations = true");
+                        config.Dataverse.EnableWriteOperations = true;
+                    }
+                    if (options.EnableDeleteOperations)
+                    {
+                        Console.Error.WriteLine("Command-line override: EnableDeleteOperations = true");
+                        config.Dataverse.EnableDeleteOperations = true;
+                    }
+                }
             }
             else
             {
@@ -128,6 +145,8 @@ class Program
             Console.Error.WriteLine("MCP server started - ready to accept requests");
             Console.Error.WriteLine($"Environment: {config.Environment}");
             Console.Error.WriteLine($"Dataverse URL: {config.Dataverse.Url}");
+            Console.Error.WriteLine($"Write Operations: {(config.Dataverse.EnableWriteOperations ? "ENABLED" : "DISABLED")}");
+            Console.Error.WriteLine($"Delete Operations: {(config.Dataverse.EnableDeleteOperations ? "ENABLED" : "DISABLED")}");
             Console.Error.WriteLine("Press Ctrl+C to stop");
             
             await server.RunAsync(cts.Token);
@@ -180,6 +199,12 @@ class Program
                         options.Timeout = timeout;
                     }
                     break;
+                case "--enable-write-operations":
+                    options.EnableWriteOperations = true;
+                    break;
+                case "--enable-delete-operations":
+                    options.EnableDeleteOperations = true;
+                    break;
                 case "--version":
                 case "-v":
                     options.ShowVersion = true;
@@ -212,20 +237,24 @@ class Program
         Console.WriteLine("  pipedream-mcp --config-file <path>");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  --dataverse-url, -u <url>   Dataverse instance URL (inline config)");
-        Console.WriteLine("  --api-version, -a <ver>     API version (default: v9.2)");
-        Console.WriteLine("  --timeout, -t <seconds>     Request timeout (default: 30)");
-        Console.WriteLine("  --config-file, -c <path>    Path to config JSON file");
-        Console.WriteLine("  --version, -v               Show version information");
-        Console.WriteLine("  --help, -h                  Show this help message");
+        Console.WriteLine("  --dataverse-url, -u <url>       Dataverse instance URL (inline config)");
+        Console.WriteLine("  --api-version, -a <ver>         API version (default: v9.2)");
+        Console.WriteLine("  --timeout, -t <seconds>         Request timeout (default: 30)");
+        Console.WriteLine("  --enable-write-operations       Enable Create/Update operations (default: false)");
+        Console.WriteLine("  --enable-delete-operations      Enable Delete operations (default: false)");
+        Console.WriteLine("  --config-file, -c <path>        Path to config JSON file");
+        Console.WriteLine("  --version, -v                   Show version information");
+        Console.WriteLine("  --help, -h                      Show this help message");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  Inline configuration:");
         Console.WriteLine("    pipedream-mcp -u https://org.crm.dynamics.com/");
-        Console.WriteLine("    pipedream-mcp -u https://org.crm.dynamics.com/ -t 60");
+        Console.WriteLine("    pipedream-mcp -u https://org.crm.dynamics.com/ --enable-write-operations");
+        Console.WriteLine("    pipedream-mcp -u https://org.crm.dynamics.com/ --enable-write-operations --enable-delete-operations");
         Console.WriteLine();
         Console.WriteLine("  Config file:");
         Console.WriteLine("    pipedream-mcp -c C:/configs/prod.json");
+        Console.WriteLine("    pipedream-mcp -c C:/configs/prod.json --enable-write-operations");
     }
 
     private class CommandLineOptions
@@ -234,6 +263,8 @@ class Program
         public string? ConfigFile { get; set; }
         public string? ApiVersion { get; set; }
         public int? Timeout { get; set; }
+        public bool EnableWriteOperations { get; set; }
+        public bool EnableDeleteOperations { get; set; }
         public bool ShowVersion { get; set; }
         public bool ShowHelp { get; set; }
     }
