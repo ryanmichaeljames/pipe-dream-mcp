@@ -1,0 +1,64 @@
+name: Test Changelog Extraction
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to extract (e.g., v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+  push: # Add this line temporarily
+    branches:
+      - 'feature/release-improvements' # Optionally limit to your branch
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Extract release notes from CHANGELOG
+      id: changelog
+      shell: pwsh
+      run: |
+        $VERSION = "v0.1.0"
+        Write-Host "Extracting notes for version: $VERSION"
+        
+        # Extract content between version headers
+        $versionNumber = $VERSION.TrimStart('v')
+        $content = Get-Content CHANGELOG.md
+        $capture = $false
+        $notes = @()
+        
+        foreach ($line in $content) {
+          if ($line -match "^## \[$versionNumber\]") {
+            $capture = $true
+            continue
+          }
+          if ($capture -and $line -match "^## \[") {
+            break
+          }
+          if ($capture -and $line -notmatch "^\[") {
+            $notes += $line
+          }
+        }
+        
+        $notesText = ($notes -join "`n").Trim()
+        Write-Host "=== Extracted Notes ==="
+        Write-Host $notesText
+        Write-Host "======================="
+        
+        # Save to output
+        "notes<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        $notesText | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      
+    - name: Display extracted notes
+      run: |
+        echo "Notes output:"
+        echo "${{ steps.changelog.outputs.notes }}"
