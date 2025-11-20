@@ -11,7 +11,7 @@ public static class DataverseTools
     public static ToolDefinition Query => new()
     {
         Name = "dataverse_query",
-        Description = "Query Dataverse entities using OData. Returns a collection of records matching the query criteria.",
+        Description = @"Query Dataverse entities using OData. Use entity plural names (e.g., 'accounts', 'contacts'). For Power Automate flows, prefer dataverse_query_flows tool instead.",
         InputSchema = new InputSchema
         {
             Type = "object",
@@ -20,23 +20,38 @@ public static class DataverseTools
                 ["entity"] = new()
                 {
                     Type = "string",
-                    Description = "Entity logical name (e.g., 'account', 'contact', 'opportunity')"
+                    Description = "Entity plural name: 'accounts', 'contacts', 'solutions', etc. Must be plural form used in Web API."
                 },
                 ["select"] = new()
                 {
                     Type = "array",
-                    Description = "Array of field names to return (e.g., ['name', 'emailaddress1'])",
+                    Description = "Field names to return. Example: ['name', 'emailaddress1', 'createdon']",
                     Items = new() { Type = "string" }
                 },
                 ["filter"] = new()
                 {
                     Type = "string",
-                    Description = "OData filter expression (e.g., 'statecode eq 0' or 'name eq ''Contoso''')"
+                    Description = "OData filter. Examples: \"statecode eq 0\", \"name eq 'Contoso'\", \"contains(name, 'test')\". For dates, convert to UTC first."
+                },
+                ["orderby"] = new()
+                {
+                    Type = "string",
+                    Description = "Order results by field(s). Examples: 'createdon desc', 'name asc', 'modifiedon desc,name asc'. Provides stable ordering for consistent results."
                 },
                 ["top"] = new()
                 {
                     Type = "integer",
-                    Description = "Maximum number of records to return (default: 50)"
+                    Description = "Limit total records returned (default: 50, max: 5000). Use when you want a fixed number of results in a single response. Example: 'Get top 10 accounts'. Do NOT use with maxpagesize."
+                },
+                ["count"] = new()
+                {
+                    Type = "boolean",
+                    Description = "Include total count of matching records (default: true). Returns @odata.count in response."
+                },
+                ["maxpagesize"] = new()
+                {
+                    Type = "integer",
+                    Description = "Records per page for server-driven pagination (e.g., 10, 50, 100). Use when user wants to paginate through results or expects many records. Returns @odata.nextLink for fetching next page. Example: 'Show me solutions, 5 at a time'. Do NOT use with top."
                 }
             },
             Required = new[] { "entity" }
@@ -46,7 +61,7 @@ public static class DataverseTools
     public static ToolDefinition Retrieve => new()
     {
         Name = "dataverse_retrieve",
-        Description = "Retrieve a single Dataverse record by its ID.",
+        Description = "Retrieve a single Dataverse record by ID.",
         InputSchema = new InputSchema
         {
             Type = "object",
@@ -55,17 +70,17 @@ public static class DataverseTools
                 ["entity"] = new()
                 {
                     Type = "string",
-                    Description = "Entity logical name (e.g., 'account', 'contact')"
+                    Description = "Entity plural name: 'accounts', 'contacts', etc."
                 },
                 ["id"] = new()
                 {
                     Type = "string",
-                    Description = "GUID of the record to retrieve"
+                    Description = "Record GUID"
                 },
                 ["select"] = new()
                 {
                     Type = "array",
-                    Description = "Array of field names to return (optional)",
+                    Description = "Field names to return (optional). Example: ['name', 'createdon']",
                     Items = new() { Type = "string" }
                 }
             },
@@ -76,7 +91,7 @@ public static class DataverseTools
     public static ToolDefinition Metadata => new()
     {
         Name = "dataverse_metadata",
-        Description = "Get metadata about Dataverse entities, including available entities and their attributes.",
+        Description = "Get Dataverse entity metadata including available entities and their attributes.",
         InputSchema = new InputSchema
         {
             Type = "object",
@@ -85,48 +100,43 @@ public static class DataverseTools
                 ["entity"] = new()
                 {
                     Type = "string",
-                    Description = "Specific entity logical name to get metadata for (optional). If not provided, returns list of all entities."
+                    Description = "Entity plural name for specific metadata (optional). If omitted, returns all entities."
                 }
             },
             Required = Array.Empty<string>()
         }
     };
 
-    public static ToolDefinition List => new()
+    public static ToolDefinition QueryNextLink => new()
     {
-        Name = "dataverse_list",
-        Description = "List records from a Dataverse entity with pagination support.",
+        Name = "dataverse_query_nextlink",
+        Description = "Fetch next page of results using @odata.nextLink from a previous query. Use this after calling dataverse_query with maxpagesize parameter.",
         InputSchema = new InputSchema
         {
             Type = "object",
             Properties = new Dictionary<string, PropertySchema>
             {
-                ["entity"] = new()
+                ["nextlink"] = new()
                 {
                     Type = "string",
-                    Description = "Entity logical name (e.g., 'account', 'contact')"
+                    Description = "The full @odata.nextLink URL from the previous query response. Example: 'https://org.crm.dynamics.com/api/data/v9.2/contacts?$skiptoken=...'"
                 },
-                ["pageSize"] = new()
+                ["maxpagesize"] = new()
                 {
                     Type = "integer",
-                    Description = "Number of records per page (default: 50, max: 250)"
-                },
-                ["pagingCookie"] = new()
-                {
-                    Type = "string",
-                    Description = "Paging cookie from previous response for next page (optional)"
+                    Description = "Optional: Same maxpagesize value from the original query to maintain consistent page size (e.g., 10, 50, 100). Recommended to match the original query's maxpagesize."
                 }
             },
-            Required = new[] { "entity" }
+            Required = new[] { "nextlink" }
         }
     };
 
     public static IEnumerable<ToolDefinition> All => new[]
     {
         Query,
+        QueryNextLink,
         Retrieve,
-        Metadata,
-        List
+        Metadata
     };
 }
 

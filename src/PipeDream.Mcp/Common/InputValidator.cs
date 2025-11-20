@@ -126,4 +126,32 @@ public static class InputValidator
 
         return top.Value;
     }
+
+    /// <summary>
+    /// Validate ISO 8601 date string format
+    /// </summary>
+    public static DateTime? ValidateIso8601Date(string? dateString, string paramName)
+    {
+        if (string.IsNullOrWhiteSpace(dateString))
+            return null;
+
+        if (!DateTime.TryParse(dateString, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDate))
+            throw new ArgumentException($"{paramName} must be a valid ISO 8601 date string (e.g., '2025-01-15T10:30:00Z'). Got: {dateString}");
+
+        return parsedDate;
+    }
+
+    /// <summary>
+    /// Validate bulk operation size
+    /// </summary>
+    public static int ValidateBulkOperationSize(int count, int maxSize = 100)
+    {
+        if (count < 1)
+            throw new ArgumentException($"Bulk operation count must be at least 1, got: {count}");
+
+        if (count > maxSize)
+            throw new ArgumentException($"Bulk operation count exceeds maximum of {maxSize}, got: {count}");
+
+        return count;
+    }
 }

@@ -1,5 +1,6 @@
 using Azure.Core;
 using Azure.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace PipeDream.Mcp.Auth;
 
@@ -11,14 +12,16 @@ public class AzureAuthProvider
     private readonly AzureCliCredential _credential;
     private readonly Dictionary<string, AccessToken> _tokenCache;
     private readonly SemaphoreSlim _lock;
+    private readonly ILogger<AzureAuthProvider> _logger;
 
-    public AzureAuthProvider()
+    public AzureAuthProvider(ILogger<AzureAuthProvider> logger)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _credential = new AzureCliCredential();
         _tokenCache = new Dictionary<string, AccessToken>();
         _lock = new SemaphoreSlim(1, 1);
         
-        LogToStderr("AzureAuthProvider initialized");
+        _logger.LogInformation("AzureAuthProvider initialized");
     }
 
     /// <summary>
@@ -57,12 +60,12 @@ public class AzureAuthProvider
                 if (cachedToken.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
                 {
                     var timeRemaining = cachedToken.ExpiresOn - DateTimeOffset.UtcNow;
-                    LogToStderr($"Using cached token for {resource} (expires in {timeRemaining.TotalMinutes:F1} minutes)");
+                    _logger.LogDebug("Using cached token for {Resource} (expires in {Minutes:F1} minutes)", resource, timeRemaining.TotalMinutes);
                     return cachedToken.Token;
                 }
                 else
                 {
-                    LogToStderr($"Cached token expired or expiring soon, refreshing...");
+                    _logger.LogDebug("Cached token expired or expiring soon, refreshing...");
                     _tokenCache.Remove(resource);
                 }
             }
@@ -85,7 +88,7 @@ public class AzureAuthProvider
         
         try
         {
-            LogToStderr($"Requesting new token for {resource} (attempt {retryCount + 1}/{maxRetries + 1})");
+            _logger.LogDebug("Requesting new token for {Resource} (attempt {Attempt}/{MaxAttempts})", resource, retryCount + 1, maxRetries + 1);
             
             var tokenRequestContext = new TokenRequestContext(new[] { $"{resource}/.default" });
             var token = await _credential.GetTokenAsync(tokenRequestContext, cancellationToken);
@@ -94,19 +97,19 @@ public class AzureAuthProvider
             _tokenCache[resource] = token;
             
             var expiresIn = token.ExpiresOn - DateTimeOffset.UtcNow;
-            LogToStderr($"Token acquired successfully, expires in {expiresIn.TotalMinutes:F1} minutes ({token.ExpiresOn:yyyy-MM-dd HH:mm:ss} UTC)");
+            _logger.LogInformation("Token acquired successfully, expires in {Minutes:F1} minutes ({ExpiresOn:yyyy-MM-dd HH:mm:ss} UTC)", expiresIn.TotalMinutes, token.ExpiresOn);
             return token.Token;
         }
         catch (AuthenticationFailedException ex)
         {
             var errorMessage = $"Azure CLI authentication failed: {ex.Message}";
-            LogToStderr(errorMessage);
+            _logger.LogError(ex, "Azure CLI authentication failed");
 
             // Retry for transient failures
             if (retryCount < maxRetries && IsTransientAuthError(ex))
             {
                 var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount)); // Exponential backoff
-                LogToStderr($"Retrying after {delay.TotalSeconds} seconds...");
+                _logger.LogWarning("Retrying after {Seconds} seconds...", delay.TotalSeconds);
                 await Task.Delay(delay, cancellationToken);
                 return await AcquireNewTokenAsync(resource, cancellationToken, retryCount + 1);
             }
@@ -117,12 +120,12 @@ public class AzureAuthProvider
         }
         catch (OperationCanceledException)
         {
-            LogToStderr("Token acquisition cancelled");
+            _logger.LogInformation("Token acquisition cancelled");
             throw;
         }
         catch (Exception ex)
         {
-            LogToStderr($"Unexpected error during token acquisition: {ex.Message}");
+            _logger.LogError(ex, "Unexpected error during token acquisition");
             throw new InvalidOperationException(
                 $"Failed to acquire access token for {resource}. Error: {ex.Message}",
                 ex);
@@ -178,25 +181,25 @@ public class AzureAuthProvider
     {
         try
         {
-            LogToStderr("Verifying Azure CLI authentication");
+            _logger.LogInformation("Verifying Azure CLI authentication");
             
             // Try to get a token for Azure Resource Manager as a test
             var tokenRequestContext = new TokenRequestContext(new[] { "https://management.azure.com/.default" });
             var token = await _credential.GetTokenAsync(tokenRequestContext, cancellationToken);
             
             var expiresIn = token.ExpiresOn - DateTimeOffset.UtcNow;
-            LogToStderr($"Azure CLI authentication verified (token expires in {expiresIn.TotalMinutes:F1} minutes)");
+            _logger.LogInformation("Azure CLI authentication verified (token expires in {Minutes:F1} minutes)", expiresIn.TotalMinutes);
             return true;
         }
         catch (AuthenticationFailedException ex)
         {
-            LogToStderr($"Azure CLI authentication verification failed: {ex.Message}");
+            _logger.LogError(ex, "Azure CLI authentication verification failed");
             Console.Error.WriteLine($"\nAuthentication Error: {GetUserFriendlyAuthError(ex, "Azure Resource Manager")}");
             return false;
         }
         catch (Exception ex)
         {
-            LogToStderr($"Unexpected error during authentication verification: {ex.Message}");
+            _logger.LogError(ex, "Unexpected error during authentication verification");
             Console.Error.WriteLine($"\nError: Failed to verify Azure CLI authentication. {ex.Message}");
             return false;
         }
@@ -211,19 +214,11 @@ public class AzureAuthProvider
         try
         {
             _tokenCache.Clear();
-            LogToStderr("Token cache cleared");
+            _logger.LogDebug("Token cache cleared");
         }
         finally
         {
             _lock.Release();
         }
-    }
-
-    /// <summary>
-    /// Log to stderr for debugging
-    /// </summary>
-    private void LogToStderr(string message)
-    {
-        Console.Error.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] AzureAuthProvider: {message}");
     }
 }

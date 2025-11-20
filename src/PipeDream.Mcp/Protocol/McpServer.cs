@@ -1,20 +1,35 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using PipeDream.Mcp.Common;
 using PipeDream.Mcp.Dataverse;
+using PipeDream.Mcp.Dataverse.Interfaces;
 
 namespace PipeDream.Mcp.Protocol;
 
 /// <summary>
 /// Handles MCP protocol message exchange via stdin/stdout
 /// </summary>
-public class McpServer
+internal class McpServer
 {
     private readonly JsonSerializerOptions _jsonOptions;
-    private readonly DataverseClient? _dataverseClient;
+    private readonly IDataverseQueryService? _queryService;
+    private readonly IDataverseMetadataService? _metadataService;
+    private readonly IFlowQueryService? _flowQueryService;
+    private readonly IFlowStateService? _flowStateService;
+    private readonly ILogger<McpServer> _logger;
 
-    public McpServer(DataverseClient? dataverseClient = null)
+    public McpServer(
+        ILogger<McpServer> logger,
+        IDataverseQueryService? queryService = null,
+        IDataverseMetadataService? metadataService = null,
+        IFlowQueryService? flowQueryService = null,
+        IFlowStateService? flowStateService = null)
     {
-        _dataverseClient = dataverseClient;
+        _logger = logger;
+        _queryService = queryService;
+        _metadataService = metadataService;
+        _flowQueryService = flowQueryService;
+        _flowStateService = flowStateService;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -27,7 +42,7 @@ public class McpServer
     /// </summary>
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        LogToStderr("PipeDream MCP Server starting...");
+        _logger.LogInformation("PipeDream MCP Server starting...");
 
         using var stdin = Console.OpenStandardInput();
         using var reader = new StreamReader(stdin);
@@ -40,7 +55,7 @@ public class McpServer
             var line = await reader.ReadLineAsync(cancellationToken);
             if (line == null)
             {
-                LogToStderr("stdin closed, shutting down");
+                _logger.LogInformation("stdin closed, shutting down");
                 break;
             }
 
@@ -54,7 +69,7 @@ public class McpServer
                 var request = JsonSerializer.Deserialize<McpMessage>(line, _jsonOptions);
                 if (request == null)
                 {
-                    LogToStderr($"Failed to parse message: {line}");
+                    _logger.LogWarning("Failed to parse message: {Line}", line);
                     continue;
                 }
 
@@ -73,11 +88,11 @@ public class McpServer
                     
                     if (emptyMethodCount == 1)
                     {
-                        LogToStderr($"Warning: Received message with empty method (id: {request.Id}). Ignoring silently.");
+                        _logger.LogWarning("Received message with empty method (id: {RequestId}). Ignoring silently", request.Id);
                     }
                     else if (emptyMethodCount == MaxEmptyMethodErrors)
                     {
-                        LogToStderr($"Suppressing further empty method warnings (received {emptyMethodCount} total)");
+                        _logger.LogWarning("Suppressing further empty method warnings (received {Count} total)", emptyMethodCount);
                     }
                     
                     // Don't respond to malformed messages - just ignore them
@@ -90,11 +105,11 @@ public class McpServer
                 // Log requests normally, but only log non-standard notifications
                 if (request.Id != null)
                 {
-                    LogToStderr($"Received request: {request.Method} (id: {request.Id})");
+                    _logger.LogDebug("Received request: {Method} (id: {RequestId})", request.Method, request.Id);
                 }
                 else if (!IsStandardNotification(request.Method))
                 {
-                    LogToStderr($"Received notification: {request.Method}");
+                    _logger.LogDebug("Received notification: {Method}", request.Method);
                 }
 
                 var response = await HandleMessageAsync(request, cancellationToken);
@@ -105,11 +120,11 @@ public class McpServer
             }
             catch (Exception ex)
             {
-                LogToStderr($"Error processing message: {ex.Message}");
+                _logger.LogError(ex, "Error processing message");
             }
         }
 
-        LogToStderr("PipeDream MCP Server stopped");
+        _logger.LogInformation("PipeDream MCP Server stopped");
     }
 
     /// <summary>
@@ -141,7 +156,7 @@ public class McpServer
     /// </summary>
     private Task<McpMessage> HandleInitializeAsync(McpMessage request, CancellationToken cancellationToken)
     {
-        LogToStderr("Handling initialize request");
+        _logger.LogDebug("Handling initialize request");
 
         var result = new InitializeResult
         {
@@ -178,7 +193,7 @@ public class McpServer
     /// </summary>
     private McpMessage HandleNotification(McpMessage request, string logMessage)
     {
-        LogToStderr(logMessage);
+        _logger.LogDebug("{Message}", logMessage);
         // Notifications don't get responses - return null to signal no response needed
         return null!;
     }
@@ -203,12 +218,13 @@ public class McpServer
     /// </summary>
     private Task<McpMessage> HandleToolsListAsync(McpMessage request, CancellationToken cancellationToken)
     {
-        LogToStderr("Handling tools/list request");
+        _logger.LogDebug("Handling tools/list request");
 
         var tools = new List<ToolDefinition>();
-        if (_dataverseClient != null)
+        if (_queryService != null && _metadataService != null && _flowQueryService != null && _flowStateService != null)
         {
             tools.AddRange(DataverseTools.All);
+            tools.AddRange(FlowTools.All);
         }
 
         var result = new ToolsListResult
@@ -239,15 +255,18 @@ public class McpServer
                 return CreateErrorResponse(request.Id, -32602, "Invalid tool call parameters");
             }
 
-            LogToStderr($"Handling tools/call: {callParams.Name}");
+            _logger.LogDebug("Handling tools/call: {ToolName}", callParams.Name);
 
             // Route to appropriate handler based on tool name
             var result = callParams.Name switch
             {
                 "dataverse_query" => await HandleDataverseQueryAsync(callParams.Arguments, cancellationToken),
+                "dataverse_query_nextlink" => await HandleDataverseQueryNextLinkAsync(callParams.Arguments, cancellationToken),
                 "dataverse_retrieve" => await HandleDataverseRetrieveAsync(callParams.Arguments, cancellationToken),
                 "dataverse_metadata" => await HandleDataverseMetadataAsync(callParams.Arguments, cancellationToken),
-                "dataverse_list" => await HandleDataverseListAsync(callParams.Arguments, cancellationToken),
+                "dataverse_query_flows" => await HandleDataverseQueryFlowsAsync(callParams.Arguments, cancellationToken),
+                "dataverse_activate_flow" => await HandleDataverseActivateFlowAsync(callParams.Arguments, cancellationToken),
+                "dataverse_deactivate_flow" => await HandleDataverseDeactivateFlowAsync(callParams.Arguments, cancellationToken),
                 _ => throw new InvalidOperationException($"Unknown tool: {callParams.Name}")
             };
 
@@ -260,15 +279,15 @@ public class McpServer
         }
         catch (Exception ex)
         {
-            LogToStderr($"Error in tools/call: {ex.Message}");
+            _logger.LogError(ex, "Error in tools/call");
             return CreateErrorResponse(request.Id, -32603, $"Tool execution error: {ex.Message}");
         }
     }
 
     private async Task<string> HandleDataverseQueryAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        if (_dataverseClient == null)
-            throw new InvalidOperationException("Dataverse client not configured");
+        if (_queryService == null)
+            throw new InvalidOperationException("Dataverse query service not configured");
 
         try
         {
@@ -283,33 +302,77 @@ public class McpServer
             var filter = arguments.Value.TryGetProperty("filter", out var filterProp) ? filterProp.GetString() : null;
             InputValidator.ValidateFilterExpression(filter);
             
+            var orderBy = arguments.Value.TryGetProperty("orderby", out var orderByProp) ? orderByProp.GetString() : null;
+            
             var top = arguments.Value.TryGetProperty("top", out var topProp) ? topProp.GetInt32() : (int?)null;
-            var validatedTop = InputValidator.ValidateTopCount(top);
+            var maxPageSize = arguments.Value.TryGetProperty("maxpagesize", out var maxPageSizeProp) ? maxPageSizeProp.GetInt32() : (int?)null;
+            
+            // Validate top and maxpagesize are not used together
+            if (top.HasValue && maxPageSize.HasValue)
+                throw new ArgumentException("Cannot use both 'top' and 'maxpagesize' parameters. Use 'top' to limit total results, or 'maxpagesize' for pagination.");
+            
+            // Only default 'top' to 50 when maxPageSize is NOT being used
+            int? validatedTop = maxPageSize.HasValue ? null : InputValidator.ValidateTopCount(top);
+            var count = arguments.Value.TryGetProperty("count", out var countProp) ? countProp.GetBoolean() : true;
 
-            var result = await _dataverseClient.QueryAsync(entity, select, filter, validatedTop, cancellationToken);
+            var result = await _queryService.QueryAsync(entity, select, filter, validatedTop, expand: null, orderBy: orderBy, count: count, maxPageSize: maxPageSize, includeFormattedValues: false, cancellationToken: cancellationToken);
             return result.RootElement.GetRawText();
         }
         catch (ArgumentException ex)
         {
-            LogToStderr($"Validation error in dataverse_query: {ex.Message}");
+            _logger.LogWarning(ex, "Validation error in dataverse_query");
             throw new InvalidOperationException($"Invalid query parameters: {ex.Message}", ex);
         }
         catch (HttpRequestException ex)
         {
-            LogToStderr($"HTTP error in dataverse_query: {ex.Message}");
+            _logger.LogError(ex, "HTTP error in dataverse_query");
             throw new InvalidOperationException($"Failed to query Dataverse: {GetUserFriendlyHttpError(ex)}", ex);
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
-            LogToStderr($"Unexpected error in dataverse_query: {ex.Message}");
+            _logger.LogError(ex, "Unexpected error in dataverse_query");
             throw new InvalidOperationException($"Query operation failed: {ex.Message}", ex);
+        }
+    }
+
+    private async Task<string> HandleDataverseQueryNextLinkAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    {
+        if (_queryService == null)
+            throw new InvalidOperationException("Dataverse query service not configured");
+
+        try
+        {
+            var nextLink = arguments?.GetProperty("nextlink").GetString() ?? throw new ArgumentException("nextlink parameter required");
+            
+            if (string.IsNullOrWhiteSpace(nextLink))
+                throw new ArgumentException("nextlink parameter cannot be empty");
+
+            var maxPageSize = arguments.Value.TryGetProperty("maxpagesize", out var maxPageSizeProp) ? maxPageSizeProp.GetInt32() : (int?)null;
+
+            var result = await _queryService.QueryNextLinkAsync(nextLink, maxPageSize, cancellationToken);
+            return result.RootElement.GetRawText();
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Validation error in dataverse_query_nextlink");
+            throw new InvalidOperationException($"Invalid nextLink: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error in dataverse_query_nextlink");
+            throw new InvalidOperationException($"Failed to query nextLink: {GetUserFriendlyHttpError(ex)}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            _logger.LogError(ex, "Unexpected error in dataverse_query_nextlink");
+            throw new InvalidOperationException($"NextLink query failed: {ex.Message}", ex);
         }
     }
 
     private async Task<string> HandleDataverseRetrieveAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        if (_dataverseClient == null)
-            throw new InvalidOperationException("Dataverse client not configured");
+        if (_queryService == null)
+            throw new InvalidOperationException("Dataverse query service not configured");
 
         try
         {
@@ -324,82 +387,184 @@ public class McpServer
                 : null;
             InputValidator.ValidateFieldNames(select);
 
-            var result = await _dataverseClient.RetrieveAsync(entity, id, select, cancellationToken);
+            var result = await _queryService.RetrieveAsync(entity, id, select, cancellationToken);
             return result.RootElement.GetRawText();
         }
         catch (ArgumentException ex)
         {
-            LogToStderr($"Validation error in dataverse_retrieve: {ex.Message}");
+            _logger.LogWarning(ex, "Validation error in dataverse_retrieve");
             throw new InvalidOperationException($"Invalid retrieve parameters: {ex.Message}", ex);
         }
         catch (HttpRequestException ex)
         {
-            LogToStderr($"HTTP error in dataverse_retrieve: {ex.Message}");
+            _logger.LogError(ex, "HTTP error in dataverse_retrieve");
             throw new InvalidOperationException($"Failed to retrieve record: {GetUserFriendlyHttpError(ex)}", ex);
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
-            LogToStderr($"Unexpected error in dataverse_retrieve: {ex.Message}");
+            _logger.LogError(ex, "Unexpected error in dataverse_retrieve");
             throw new InvalidOperationException($"Retrieve operation failed: {ex.Message}", ex);
         }
     }
 
     private async Task<string> HandleDataverseMetadataAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        if (_dataverseClient == null)
-            throw new InvalidOperationException("Dataverse client not configured");
+        if (_metadataService == null)
+            throw new InvalidOperationException("Dataverse metadata service not configured");
 
         try
         {
             var entity = arguments?.TryGetProperty("entity", out var entityProp) == true ? entityProp.GetString() : null;
 
-            var result = await _dataverseClient.GetMetadataAsync(entity, cancellationToken);
+            var result = await _metadataService.GetMetadataAsync(entity, cancellationToken);
             return result.RootElement.GetRawText();
         }
         catch (HttpRequestException ex)
         {
-            LogToStderr($"HTTP error in dataverse_metadata: {ex.Message}");
+            _logger.LogError(ex, "HTTP error in dataverse_metadata");
             throw new InvalidOperationException($"Failed to retrieve metadata: {GetUserFriendlyHttpError(ex)}", ex);
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
-            LogToStderr($"Unexpected error in dataverse_metadata: {ex.Message}");
+            _logger.LogError(ex, "Unexpected error in dataverse_metadata");
             throw new InvalidOperationException($"Metadata operation failed: {ex.Message}", ex);
         }
     }
 
-    private async Task<string> HandleDataverseListAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    private async Task<string> HandleDataverseQueryFlowsAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        if (_dataverseClient == null)
-            throw new InvalidOperationException("Dataverse client not configured");
+        if (_flowQueryService == null)
+            throw new InvalidOperationException("Dataverse flow query service not configured");
 
         try
         {
-            var entity = arguments?.GetProperty("entity").GetString() ?? throw new ArgumentException("entity parameter required");
-            InputValidator.ValidateEntityName(entity);
+            // Extract parameters
+            var solutionId = arguments?.TryGetProperty("solutionId", out var solIdProp) == true 
+                ? solIdProp.GetString() 
+                : null;
+            var solutionUniqueName = arguments?.TryGetProperty("solutionUniqueName", out var solNameProp) == true 
+                ? solNameProp.GetString() 
+                : null;
+            var customFilter = arguments?.TryGetProperty("filter", out var filterProp) == true 
+                ? filterProp.GetString() 
+                : null;
             
-            var pageSize = arguments.Value.TryGetProperty("pageSize", out var pageSizeProp) ? pageSizeProp.GetInt32() : 50;
-            var validatedPageSize = InputValidator.ValidatePageSize(pageSize);
+            // Additional fields from arguments (if provided)
+            var additionalFields = arguments?.TryGetProperty("select", out var selectProp) == true 
+                ? selectProp.EnumerateArray().Select(e => e.GetString()!).Where(f => !string.IsNullOrWhiteSpace(f)).ToArray()
+                : Array.Empty<string>();
             
-            var pagingCookie = arguments.Value.TryGetProperty("pagingCookie", out var cookieProp) ? cookieProp.GetString() : null;
+            var orderBy = arguments?.TryGetProperty("orderby", out var orderByProp) == true ? orderByProp.GetString() : null;
+            var top = arguments?.TryGetProperty("top", out var topProp) == true ? topProp.GetInt32() : (int?)null;
+            var maxPageSize = arguments?.TryGetProperty("maxpagesize", out var maxPageSizeProp) == true ? maxPageSizeProp.GetInt32() : (int?)null;
+            var count = arguments?.TryGetProperty("count", out var countProp) == true ? countProp.GetBoolean() : true;
 
-            var result = await _dataverseClient.ListAsync(entity, validatedPageSize, pagingCookie, cancellationToken);
+            // Delegate to flow query service (validation happens there)
+            var result = await _flowQueryService.QueryFlowsAsync(
+                solutionId, 
+                solutionUniqueName, 
+                customFilter, 
+                additionalFields,
+                orderBy,
+                top,
+                count,
+                maxPageSize,
+                cancellationToken);
+            
             return result.RootElement.GetRawText();
         }
         catch (ArgumentException ex)
         {
-            LogToStderr($"Validation error in dataverse_list: {ex.Message}");
-            throw new InvalidOperationException($"Invalid list parameters: {ex.Message}", ex);
+            _logger.LogWarning(ex, "Validation error in dataverse_query_flows");
+            throw new InvalidOperationException($"Invalid query parameters: {ex.Message}", ex);
         }
         catch (HttpRequestException ex)
         {
-            LogToStderr($"HTTP error in dataverse_list: {ex.Message}");
-            throw new InvalidOperationException($"Failed to list records: {GetUserFriendlyHttpError(ex)}", ex);
+            _logger.LogError(ex, "HTTP error in dataverse_query_flows");
+            throw new InvalidOperationException($"Failed to query flows: {GetUserFriendlyHttpError(ex)}", ex);
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
-            LogToStderr($"Unexpected error in dataverse_list: {ex.Message}");
-            throw new InvalidOperationException($"List operation failed: {ex.Message}", ex);
+            _logger.LogError(ex, "Unexpected error in dataverse_query_flows");
+            throw new InvalidOperationException($"Query flows operation failed: {ex.Message}", ex);
+        }
+    }
+
+    private async Task<string> HandleDataverseActivateFlowAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    {
+        if (_flowStateService == null)
+            throw new InvalidOperationException("Dataverse flow state service not configured");
+
+        try
+        {
+            var workflowId = arguments?.GetProperty("workflowId").GetString() 
+                ?? throw new ArgumentException("workflowId parameter required");
+
+            var validateConnectionReferences = arguments.Value.TryGetProperty("validateConnectionReferences", out var validateProp) 
+                && validateProp.GetBoolean();
+
+            // Validate workflowId is a GUID
+            if (!Guid.TryParse(workflowId, out var guid))
+                throw new ArgumentException("workflowId must be a valid GUID");
+
+            // Delegate to flow state service
+            if (validateConnectionReferences)
+                _logger.LogDebug("Validating connection references for workflow {WorkflowId}", workflowId);
+            
+            await _flowStateService.ActivateFlowAsync(guid, validateConnectionReferences, cancellationToken);
+
+            return $"Flow {workflowId} successfully activated (StateCode: 1 - Activated, StatusCode: 2)";
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Validation error in dataverse_activate_flow");
+            throw new InvalidOperationException($"Invalid parameters: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error in dataverse_activate_flow");
+            throw new InvalidOperationException($"Failed to activate flow: {GetUserFriendlyHttpError(ex)}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            _logger.LogError(ex, "Unexpected error in dataverse_activate_flow");
+            throw new InvalidOperationException($"Activate flow operation failed: {ex.Message}", ex);
+        }
+    }
+
+    private async Task<string> HandleDataverseDeactivateFlowAsync(JsonElement? arguments, CancellationToken cancellationToken)
+    {
+        if (_flowStateService == null)
+            throw new InvalidOperationException("Dataverse flow state service not configured");
+
+        try
+        {
+            var workflowId = arguments?.GetProperty("workflowId").GetString() 
+                ?? throw new ArgumentException("workflowId parameter required");
+
+            // Validate workflowId is a GUID
+            if (!Guid.TryParse(workflowId, out var guid))
+                throw new ArgumentException("workflowId must be a valid GUID");
+
+            // Delegate to flow state service
+            await _flowStateService.DeactivateFlowAsync(guid, cancellationToken);
+
+            return $"Flow {workflowId} successfully deactivated (StateCode: 0 - Draft, StatusCode: 1)";
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Validation error in dataverse_deactivate_flow");
+            throw new InvalidOperationException($"Invalid parameters: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error in dataverse_deactivate_flow");
+            throw new InvalidOperationException($"Failed to deactivate flow: {GetUserFriendlyHttpError(ex)}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            _logger.LogError(ex, "Unexpected error in dataverse_deactivate_flow");
+            throw new InvalidOperationException($"Deactivate flow operation failed: {ex.Message}", ex);
         }
     }
 
@@ -412,7 +577,7 @@ public class McpServer
         await Console.Out.WriteLineAsync(json);
         await Console.Out.FlushAsync();
 
-        LogToStderr($"Sent response (id: {response.Id})");
+        _logger.LogDebug("Sent response (id: {ResponseId})", response.Id);
     }
 
     /// <summary>
@@ -476,7 +641,7 @@ public class McpServer
     /// </summary>
     private McpMessage CreateErrorResponse(object? id, int code, string message)
     {
-        LogToStderr($"Error: {message}");
+        _logger.LogError("Error: {Message}", message);
 
         return new McpMessage
         {
@@ -488,13 +653,5 @@ public class McpServer
                 Message = message
             }
         };
-    }
-
-    /// <summary>
-    /// Log to stderr for debugging
-    /// </summary>
-    private void LogToStderr(string message)
-    {
-        Console.Error.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] {message}");
     }
 }
