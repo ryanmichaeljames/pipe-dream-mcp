@@ -5,7 +5,7 @@ namespace PipeDream.Mcp.Dataverse.Interfaces;
 /// <summary>
 /// Service for querying Dataverse entities
 /// </summary>
-internal interface IDataverseQueryService
+public interface IDataverseQueryService
 {
     /// <summary>
     /// Execute OData query against Dataverse entity

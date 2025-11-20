@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using PipeDream.Mcp.Protocol;
+using PipeDream.Mcp.Protocol.Tools;
 
 namespace PipeDream.Mcp.Dataverse;
 

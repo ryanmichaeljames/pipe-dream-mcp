@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2025-11-21
 
 ### Added
-- **File-based logging with Microsoft.Extensions.Logging:**
+- File-based logging with Microsoft.Extensions.Logging:
   - Per-environment log files: `logs/pipedream-mcp-{subcommand}-{orgname}-{yyyyMMdd}.log`
   - Automatic 30-day cleanup of old log files
   - `--verbose` flag for Debug logging (default: Information)
@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consistent page sizes now maintained when `maxpagesize` passed to `dataverse_query_nextlink`
 
 ### Changed
-- **CLI structure refactored to subcommands:**
+- CLI structure refactored to subcommands:
   - `pipedream-mcp dataverse` - Run Dataverse MCP server
   - `pipedream-mcp azure-devops` - Run Azure DevOps MCP server (coming soon)
   - Enables future multi-provider support (Dataverse, Azure DevOps, GitHub, etc.)
@@ -77,6 +77,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Flat class names (`Fields`, `State`, `Status`, `Category`) with entity namespace providing context
   - Example: `DataverseConstants.Fields.Workflow.Name` → `Fields.Name` (with `using PipeDream.Mcp.Dataverse.Constants.Workflow;`)
   - Improves code clarity by showing entity relationships through namespace organization
+- Refactored codebase for maintainability and scalability:
+  - Split `McpMessage.cs` (145 lines) into 7 focused files organized by responsibility:
+    - `Protocol/Messages/` - McpMessage.cs (27 lines), McpError.cs (18 lines)
+    - `Protocol/Initialize/` - InitializeParams.cs (32 lines), InitializeResult.cs (47 lines)
+    - `Protocol/Tools/` - ToolDefinition.cs (17 lines), ToolsListResult.cs (13 lines), ToolCallParams.cs (16 lines)
+  - Simplified `Program.cs` from 350+ lines to 59 lines using command handler pattern:
+    - Created `Commands/ICommandHandler` interface for extensibility
+    - Extracted `Commands/DataverseCommandHandler` (186 lines) with complete dataverse logic
+    - Extracted `Commands/HelpProvider` (90 lines) centralizing all help text
+    - Extracted `Commands/CommandLineParser` (82 lines) for reusable argument parsing
+    - Implemented dictionary-based command routing for easy addition of new subcommands
+  - Updated 13 dependent files with new Protocol namespace structure
+  - All files now under 200 lines, each with single responsibility
+  - Architecture prepared for Azure DevOps and other provider additions without modifying core routing
 
 ### Removed
 - `dataverse_list` tool (redundant with `dataverse_query` top parameter)

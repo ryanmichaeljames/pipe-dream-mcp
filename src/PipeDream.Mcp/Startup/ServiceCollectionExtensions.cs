@@ -5,6 +5,8 @@ using PipeDream.Mcp.Dataverse;
 using PipeDream.Mcp.Dataverse.Interfaces;
 using PipeDream.Mcp.Dataverse.Services;
 using PipeDream.Mcp.Protocol;
+using PipeDream.Mcp.Tools.Dataverse;
+using PipeDream.Mcp.Tools.Flow;
 
 namespace PipeDream.Mcp.Startup;
 
@@ -37,6 +39,27 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDataverseMetadataService, DataverseMetadataService>();
         services.AddSingleton<IFlowQueryService, FlowQueryService>();
         services.AddSingleton<IFlowStateService, FlowStateService>();
+
+        // Register tool handlers
+        services.AddSingleton<IToolHandler, DataverseQueryToolHandler>();
+        services.AddSingleton<IToolHandler, DataverseQueryNextLinkToolHandler>();
+        services.AddSingleton<IToolHandler, DataverseRetrieveToolHandler>();
+        services.AddSingleton<IToolHandler, DataverseMetadataToolHandler>();
+        services.AddSingleton<IToolHandler, FlowQueryToolHandler>();
+        services.AddSingleton<IToolHandler, FlowActivateToolHandler>();
+        services.AddSingleton<IToolHandler, FlowDeactivateToolHandler>();
+
+        // Register tool registry and populate it
+        services.AddSingleton<ToolRegistry>(sp =>
+        {
+            var registry = new ToolRegistry();
+            var handlers = sp.GetServices<IToolHandler>();
+            foreach (var handler in handlers)
+            {
+                registry.Register(handler);
+            }
+            return registry;
+        });
 
         // Register MCP server
         services.AddSingleton<McpServer>();

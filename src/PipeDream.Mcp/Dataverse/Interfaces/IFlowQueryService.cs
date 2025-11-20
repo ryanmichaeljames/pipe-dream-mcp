@@ -5,7 +5,7 @@ namespace PipeDream.Mcp.Dataverse.Interfaces;
 /// <summary>
 /// Service for querying Power Automate flows
 /// </summary>
-internal interface IFlowQueryService
+public interface IFlowQueryService
 {
     /// <summary>
     /// Query Power Automate flows with optional solution filtering

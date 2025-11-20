@@ -3,7 +3,7 @@ namespace PipeDream.Mcp.Dataverse.Interfaces;
 /// <summary>
 /// Service for managing Power Automate flow state
 /// </summary>
-internal interface IFlowStateService
+public interface IFlowStateService
 {
     /// <summary>
     /// Activate a Power Automate flow
