@@ -54,12 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consistent page sizes now maintained when `maxpagesize` passed to `dataverse_query_nextlink`
 
 ### Changed
-- CLI structure refactored to subcommands:
+- **BREAKING CHANGE**: CLI structure refactored to subcommands:
+  - Now requires subcommand: `pipedream-mcp dataverse --dataverse-url <url>` (previously `pipedream-mcp --dataverse-url <url>`)
   - `pipedream-mcp dataverse` - Run Dataverse MCP server
   - `pipedream-mcp azure-devops` - Run Azure DevOps MCP server (coming soon)
   - Enables future multi-provider support (Dataverse, Azure DevOps, GitHub, etc.)
   - Each subcommand has its own help: `pipedream-mcp dataverse --help`
   - Global flags: `--version`, `--help`
+  - No backward compatibility with v0.1.0 command format
 - Improved `dataverse_query` tool description with plural naming emphasis
 - Updated `dataverse_retrieve` and `dataverse_metadata` descriptions for clarity
 - Optimized `dataverse_query_flows` for solution filtering (uses direct filter when GUID provided)
