@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace PipeDream.Mcp.Config;
 
@@ -7,8 +8,11 @@ namespace PipeDream.Mcp.Config;
 /// </summary>
 public class ConfigLoader
 {
-    public ConfigLoader()
+    private readonly ILogger<ConfigLoader>? _logger;
+
+    public ConfigLoader(ILogger<ConfigLoader>? logger = null)
     {
+        _logger = logger;
     }
 
     /// <summary>
@@ -26,7 +30,7 @@ public class ConfigLoader
             throw new FileNotFoundException($"Config file not found: {filePath}");
         }
 
-        LogToStderr($"Loading config: {filePath}");
+        _logger?.LogInformation("Loading config: {FilePath}", filePath);
 
         var json = File.ReadAllText(filePath);
         var config = JsonSerializer.Deserialize<EnvironmentConfig>(json, new JsonSerializerOptions
@@ -43,7 +47,12 @@ public class ConfigLoader
 
         ValidateConfig(config);
         
-        LogToStderr($"Loaded environment: {config.Environment}");
+        _logger?.LogInformation("Loaded environment: {Environment}", config.Environment);
+        if (config.Dataverse != null)
+        {
+            _logger?.LogInformation("Dataverse Write Operations: {WriteOps}", config.Dataverse.EnableWriteOperations ? "ENABLED" : "DISABLED");
+            _logger?.LogInformation("Dataverse Delete Operations: {DeleteOps}", config.Dataverse.EnableDeleteOperations ? "ENABLED" : "DISABLED");
+        }
         return config;
     }
 
@@ -77,13 +86,5 @@ public class ConfigLoader
                 throw new InvalidOperationException("DevOps config missing 'organization' field");
             }
         }
-    }
-
-    /// <summary>
-    /// Log to stderr for debugging
-    /// </summary>
-    private static void LogToStderr(string message)
-    {
-        Console.Error.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] ConfigLoader: {message}");
     }
 }

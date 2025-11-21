@@ -33,6 +33,20 @@ public class DataverseConfig
 
     [JsonPropertyName("timeout")]
     public int Timeout { get; set; } = 30;
+
+    /// <summary>
+    /// Enable write operations (Create/Update - PATCH, POST)
+    /// Default: false for safety
+    /// </summary>
+    [JsonPropertyName("enableWriteOperations")]
+    public bool EnableWriteOperations { get; set; } = false;
+
+    /// <summary>
+    /// Enable delete operations (DELETE)
+    /// Default: false for maximum safety - requires explicit opt-in beyond write operations
+    /// </summary>
+    [JsonPropertyName("enableDeleteOperations")]
+    public bool EnableDeleteOperations { get; set; } = false;
 }
 
 /// <summary>
