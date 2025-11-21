@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Power Platform subcommand for environment management:
+  - `pipedream-mcp powerplatform --config-file <path>` command
+  - Separate authentication and HTTP client for Power Platform Management API (api.powerplatform.com)
+  - Config file required (no inline URL option)
+  - Four environment management tools:
+    - `powerplatform_environmentmanagement_list_environments` - List all accessible environments
+    - `powerplatform_environmentmanagement_get_environment_settings` - Get environment settings/feature flags
+    - `powerplatform_environmentmanagement_list_environment_operations` - View lifecycle operations history
+    - `powerplatform_environmentmanagement_get_operation` - Get operation details by ID
+  - Service-oriented architecture with `IPowerPlatformEnvironmentService`
+  - Retry logic with exponential backoff for Power Platform API calls
+  - Input validation for environment IDs and operation IDs (GUID format)
+  - Configuration: `PowerPlatformConfig` with apiVersion (default: "2022-03-01-preview") and timeout (default: 30)
+  - File-based logging: `logs/pipedream-mcp-powerplatform-{yyyyMMdd}.log` (applies to all environments)
+  - Tool descriptions encourage agent confirmation before accessing specific environments
+  - Support for combined config files (both dataverse and powerplatform sections)
+
 ## [0.2.0] - 2025-11-21
 
 ### Added

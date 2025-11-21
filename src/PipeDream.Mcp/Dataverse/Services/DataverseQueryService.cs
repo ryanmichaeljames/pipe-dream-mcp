@@ -69,4 +69,12 @@ internal sealed class DataverseQueryService : IDataverseQueryService
             select,
             cancellationToken);
     }
+
+    /// <summary>
+    /// Get information about the currently authenticated user
+    /// </summary>
+    public async Task<JsonDocument> WhoAmIAsync(CancellationToken cancellationToken = default)
+    {
+        return await _client.WhoAmIAsync(cancellationToken);
+    }
 }

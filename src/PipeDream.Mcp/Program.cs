@@ -12,6 +12,7 @@ class Program
             var commands = new Dictionary<string, ICommandHandler>
             {
                 ["dataverse"] = new DataverseCommandHandler(),
+                ["powerplatform"] = new PowerPlatformCommandHandler(),
                 // Future: ["azure-devops"] = new AzureDevOpsCommandHandler()
             };
             

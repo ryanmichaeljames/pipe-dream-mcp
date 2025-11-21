@@ -38,4 +38,9 @@ public interface IDataverseQueryService
         Guid recordId,
         string[]? select = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get information about the currently authenticated user
+    /// </summary>
+    Task<JsonDocument> WhoAmIAsync(CancellationToken cancellationToken = default);
 }

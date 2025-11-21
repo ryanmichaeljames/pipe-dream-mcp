@@ -258,6 +258,27 @@ internal class DataverseClient
 
 
     /// <summary>
+    /// Get information about the currently authenticated user
+    /// </summary>
+    public async Task<JsonDocument> WhoAmIAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureAuthenticatedAsync(cancellationToken);
+
+        var endpoint = $"/api/data/{_config.ApiVersion}/WhoAmI";
+
+        _logger.LogDebug("WhoAmI {Endpoint}", endpoint);
+
+        return await RetryHelper.ExecuteWithRetryAsync(async () =>
+        {
+            var response = await _httpClient.GetAsync(endpoint, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonDocument.Parse(content);
+        }, cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
     /// Update a record with specified fields
     /// </summary>
     public async Task UpdateAsync(

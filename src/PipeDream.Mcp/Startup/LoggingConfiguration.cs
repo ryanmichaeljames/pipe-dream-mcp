@@ -28,10 +28,12 @@ public static class LoggingConfiguration
         Directory.CreateDirectory(logDirectory);
 
         // Sanitize identifier for filename (remove invalid characters)
-        var sanitizedIdentifier = string.IsNullOrWhiteSpace(identifier) ? "default" : SanitizeFileName(identifier);
+        var sanitizedIdentifier = string.IsNullOrWhiteSpace(identifier) ? string.Empty : SanitizeFileName(identifier);
 
         // Log file path - Serilog inserts date before .log extension (e.g., filename.log becomes filename-20251121.log)
-        var logFilePrefix = $"pipedream-mcp-{subcommand}-{sanitizedIdentifier}";
+        var logFilePrefix = string.IsNullOrWhiteSpace(sanitizedIdentifier) 
+            ? $"pipedream-mcp-{subcommand}"
+            : $"pipedream-mcp-{subcommand}-{sanitizedIdentifier}";
         var logFilePath = Path.Combine(logDirectory, $"{logFilePrefix}.log");
 
         // Clean up old log files (older than 30 days)

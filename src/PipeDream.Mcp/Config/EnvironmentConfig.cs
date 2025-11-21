@@ -3,18 +3,18 @@ using System.Text.Json.Serialization;
 namespace PipeDream.Mcp.Config;
 
 /// <summary>
-/// Configuration for a specific environment (dev/test/prod)
+/// Configuration for connecting to Dataverse, Power Platform, and Azure DevOps
 /// </summary>
 public class EnvironmentConfig
 {
-    [JsonPropertyName("environment")]
-    public string Environment { get; set; } = string.Empty;
-
     [JsonPropertyName("dataverse")]
     public DataverseConfig? Dataverse { get; set; }
 
     [JsonPropertyName("devops")]
     public DevOpsConfig? DevOps { get; set; }
+
+    [JsonPropertyName("powerplatform")]
+    public PowerPlatformConfig? PowerPlatform { get; set; }
 
     [JsonPropertyName("logging")]
     public LoggingConfig? Logging { get; set; }
@@ -71,4 +71,16 @@ public class LoggingConfig
 {
     [JsonPropertyName("level")]
     public string Level { get; set; } = "info";
+}
+
+/// <summary>
+/// Power Platform API configuration
+/// </summary>
+public class PowerPlatformConfig
+{
+    [JsonPropertyName("apiVersion")]
+    public string ApiVersion { get; set; } = "2022-03-01-preview";
+
+    [JsonPropertyName("timeout")]
+    public int Timeout { get; set; } = 30;
 }

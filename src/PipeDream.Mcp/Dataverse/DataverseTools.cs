@@ -131,12 +131,25 @@ public static class DataverseTools
         }
     };
 
+    public static ToolDefinition WhoAmI => new()
+    {
+        Name = "dataverse_whoami",
+        Description = "Get information about the currently authenticated user including UserId, BusinessUnitId, and OrganizationId.",
+        InputSchema = new InputSchema
+        {
+            Type = "object",
+            Properties = new Dictionary<string, PropertySchema>(),
+            Required = Array.Empty<string>()
+        }
+    };
+
     public static IEnumerable<ToolDefinition> All => new[]
     {
         Query,
         QueryNextLink,
         Retrieve,
-        Metadata
+        Metadata,
+        WhoAmI
     };
 }
 

@@ -25,6 +25,7 @@ public static class HelpProvider
         Console.WriteLine();
         Console.WriteLine("Subcommands:");
         Console.WriteLine("  dataverse       Run Dataverse MCP server");
+        Console.WriteLine("  powerplatform   Run Power Platform MCP server");
         Console.WriteLine("  azure-devops    Run Azure DevOps MCP server (coming soon)");
         Console.WriteLine();
         Console.WriteLine("Global Options:");
@@ -34,10 +35,12 @@ public static class HelpProvider
         Console.WriteLine("Examples:");
         Console.WriteLine("  pipedream-mcp dataverse --dataverse-url https://org.crm.dynamics.com/");
         Console.WriteLine("  pipedream-mcp dataverse --config-file C:/configs/prod.json");
+        Console.WriteLine("  pipedream-mcp powerplatform --config-file C:/configs/prod.json");
         Console.WriteLine("  pipedream-mcp azure-devops --organization myorg --project myproject");
         Console.WriteLine();
         Console.WriteLine("For subcommand-specific help:");
         Console.WriteLine("  pipedream-mcp dataverse --help");
+        Console.WriteLine("  pipedream-mcp powerplatform --help");
         Console.WriteLine("  pipedream-mcp azure-devops --help");
     }
 
@@ -76,6 +79,28 @@ public static class HelpProvider
         Console.WriteLine("Examples:");
         Console.WriteLine("  pipedream-mcp dataverse -u https://org.crm.dynamics.com/");
         Console.WriteLine("  pipedream-mcp dataverse -c C:/configs/prod.json --enable-write-operations");
+    }
+
+    /// <summary>
+    /// Show help for Power Platform subcommand
+    /// </summary>
+    public static void ShowPowerPlatformHelp()
+    {
+        Console.WriteLine("PipeDream MCP - Power Platform Subcommand");
+        Console.WriteLine();
+        Console.WriteLine("Usage:");
+        Console.WriteLine("  pipedream-mcp powerplatform --config-file <path>");
+        Console.WriteLine();
+        Console.WriteLine("Options:");
+        Console.WriteLine("  --config-file, -c <path>        Path to config JSON file (required)");
+        Console.WriteLine("  --api-version, -a <ver>         API version (default: 2022-03-01-preview)");
+        Console.WriteLine("  --timeout, -t <seconds>         Request timeout (default: 30)");
+        Console.WriteLine("  --verbose                       Enable debug logging");
+        Console.WriteLine("  --help, -h                      Show this help message");
+        Console.WriteLine();
+        Console.WriteLine("Examples:");
+        Console.WriteLine("  pipedream-mcp powerplatform -c C:/configs/prod.json");
+        Console.WriteLine("  pipedream-mcp powerplatform -c ./config.json --verbose");
     }
 
     private static string GetVersionString()

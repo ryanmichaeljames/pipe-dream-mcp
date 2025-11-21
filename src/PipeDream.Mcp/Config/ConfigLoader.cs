@@ -47,7 +47,6 @@ public class ConfigLoader
 
         ValidateConfig(config);
         
-        _logger?.LogInformation("Loaded environment: {Environment}", config.Environment);
         if (config.Dataverse != null)
         {
             _logger?.LogInformation("Dataverse Write Operations: {WriteOps}", config.Dataverse.EnableWriteOperations ? "ENABLED" : "DISABLED");
@@ -61,11 +60,6 @@ public class ConfigLoader
     /// </summary>
     private void ValidateConfig(EnvironmentConfig config)
     {
-        if (string.IsNullOrWhiteSpace(config.Environment))
-        {
-            throw new InvalidOperationException("Config missing 'environment' field");
-        }
-
         if (config.Dataverse != null)
         {
             if (string.IsNullOrWhiteSpace(config.Dataverse.Url))

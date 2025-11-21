@@ -46,6 +46,15 @@ public class AzureAuthProvider
     }
 
     /// <summary>
+    /// Get access token for Power Platform
+    /// </summary>
+    public async Task<string> GetPowerPlatformTokenAsync(CancellationToken cancellationToken = default)
+    {
+        const string resource = "https://api.powerplatform.com";
+        return await GetTokenAsync(resource, cancellationToken);
+    }
+
+    /// <summary>
     /// Get access token for specified resource with caching
     /// </summary>
     private async Task<string> GetTokenAsync(string resource, CancellationToken cancellationToken)

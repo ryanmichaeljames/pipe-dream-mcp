@@ -5,7 +5,7 @@ applyTo: '**/*'
 # MCP Server Implementation Instructions
 
 ## Context
-You are implementing a Model Context Protocol (MCP) server in C# for access to Microsoft Dataverse and Azure DevOps. The server uses Azure CLI authentication and supports multiple environments.
+You are implementing a Model Context Protocol (MCP) server in C# for access to Microsoft Dataverse, Power Platform, and Azure DevOps. The server uses Azure CLI authentication with inline or file-based configuration.
 
 ## Core Principles
 
@@ -18,10 +18,10 @@ You are implementing a Model Context Protocol (MCP) server in C# for access to M
 
 ## Technology Stack
 - **.NET 10.0** - Target framework
-- **Azure.Identity** - For Azure CLI credential (`AzureCliCredential`)
-- **System.Text.Json** - JSON serialization
-- **Microsoft.Extensions.Configuration** - Config file loading
-- **HttpClient** - Dataverse/DevOps API calls
+- **Azure CLI** - Authentication via `az login` (not Azure.Identity library)
+- **System.Text.Json** - JSON serialization with `JsonDocument` for API responses
+- **HttpClient** - Direct API calls with retry logic
+- **File-based logging** - Serilog for operational logs; stderr reserved for fatal errors only per MCP protocol
 
 ## Implementation Rules
 
@@ -55,10 +55,12 @@ catch (HttpRequestException ex) {
 ```
 
 ### Configuration
-- Load config on startup, fail if invalid
-- Use strongly-typed config classes
-- Validate all required fields present
-- Log config used (except secrets)
+- Config files in JSON format (no `environment` property needed)
+- Use strongly-typed config classes (`EnvironmentConfig`, `DataverseConfig`, etc.)
+- Dataverse: Config file optional (can use `--dataverse-url` inline)
+- Power Platform: Config file required (uses fixed API URL https://api.powerplatform.com)
+- Azure DevOps: Config file required
+- Validate required fields on load, fail fast with clear errors
 
 ---
 
@@ -85,26 +87,27 @@ public class McpServer
 ```
 Why: Easy to mock for testing, clear dependencies
 
-### Tool Schema Pattern
+### Tool Handler Pattern
 ```csharp
-public static ToolDefinition QueryTool => new()
+public class DataverseQueryToolHandler : IToolHandler
 {
-    Name = "dataverse_query",
-    Description = "Query Dataverse entities using OData",
-    InputSchema = new()
+    public string ToolName => "dataverse_query";
+    public ToolDefinition Definition => DataverseTools.Query;
+    
+    public async Task<string> ExecuteAsync(JsonElement? arguments, CancellationToken cancellationToken)
     {
-        Type = "object",
-        Properties = new()
-        {
-            ["entity"] = new() { Type = "string", Description = "Entity logical name" },
-            ["select"] = new() { Type = "array", Description = "Fields to return" },
-            ["filter"] = new() { Type = "string", Description = "OData filter" }
-        },
-        Required = new[] { "entity" }
+        // Extract and validate arguments
+        var entity = arguments?.GetProperty("entity").GetString();
+        if (string.IsNullOrWhiteSpace(entity))
+            throw new InvalidOperationException("entity parameter required");
+        
+        // Call service and return JSON string
+        var result = await _service.QueryAsync(entity, cancellationToken);
+        return result.RootElement.GetRawText();
     }
-};
+}
 ```
-Why: Self-documenting, validates parameters automatically
+Why: Consistent pattern, throws exceptions for errors (not McpMessage)
 
 ---
 
@@ -126,33 +129,27 @@ Why: Self-documenting, validates parameters automatically
 - [ ] Dataverse API calls work with real environment
 
 ### Manual Test from VS Code GitHub Copilot
-1. Add server to settings:
+Configure in VS Code settings (requires published package or local build):
 ```json
 {
-  "github.copilot.chat.mcp.servers": {
-    "pipe-dream-dev": {
-      "command": "dotnet",
-      "args": ["run", "--project", "c:/repo/ryanmichaeljames/pipe-dream-mcp/src/PipeDream.Mcp", "--", "--dataverse-url", "https://your-org.crm.dynamics.com"]
+  "servers": {
+    "pipe-dream": {
+      "command": "pipedream-mcp",
+      "args": ["dataverse", "--config-file", "path/to/config.json"]
     }
   }
 }
 ```
-2. Reload VS Code window
-3. Open Copilot Chat
-4. Ask: "What Dataverse entities are available?"
-5. Verify tool execution and response
-
-**Note:** Server must be running and responding to MCP protocol for Copilot to use it.
 
 ---
 
 ## Common Pitfalls to Avoid
 
 ❌ **Don't** hardcode URLs or credentials
-✅ **Do** use config files
+✅ **Do** use config file
 
 ❌ **Don't** swallow exceptions silently
-✅ **Do** log to stderr and return error messages
+✅ **Do** log to files (Serilog), only fatal errors to stderr
 
 ❌ **Don't** use complex inheritance hierarchies
 ✅ **Do** use simple interfaces and composition
@@ -164,7 +161,10 @@ Why: Self-documenting, validates parameters automatically
 ✅ **Do** validate and provide helpful error messages
 
 ❌ **Don't** use Console.WriteLine for logging
-✅ **Do** write logs to stderr (Console.Error.WriteLine)
+✅ **Do** use file-based logging (Serilog)
+
+❌ **Don't** return `McpMessage` from tool handlers
+✅ **Do** throw exceptions for errors, return JSON strings for success
 
 ---
 
@@ -176,12 +176,18 @@ Why: Self-documenting, validates parameters automatically
 
 Always use here-strings (`@' ... '@`) for JSON messages. PowerShell treats semicolons (`;`) as command separators, which breaks JSON containing filters or complex arguments.
 
+**Parse JSON responses** using `ConvertFrom-Json | ConvertTo-Json` to get readable output instead of escaped Unicode characters.
+
 ```powershell
 # Use here-strings to avoid escaping issues
 $msg = @'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"dataverse_query","arguments":{"entity":"solutions","select":["uniquename","friendlyname"],"filter":"ismanaged eq false","top":10}}}
 '@
-$msg | dotnet run --project src/PipeDream.Mcp -- --dataverse-url https://your-org.crm.dynamics.com
+$msg | dotnet run --project src/PipeDream.Mcp -- --dataverse-url https://your-org.crm.dynamics.com | ConvertFrom-Json | ConvertTo-Json -Depth 10
+
+# For simpler parsing of tool results:
+$response = $msg | dotnet run --project src/PipeDream.Mcp -- --dataverse-url https://your-org.crm.dynamics.com | ConvertFrom-Json
+$response.result.content[0].text | ConvertFrom-Json | ConvertTo-Json
 ```
 
 ### Check Azure CLI Auth
@@ -191,7 +197,7 @@ az account get-access-token --resource https://org.crm.dynamics.com
 ```
 
 ### Enable Verbose Logging
-Add to config: `"logLevel": "debug"` and log everything to stderr
+Add to config: `"logging": { "level": "debug" }` or use `--verbose` flag
 
 ### Test Dataverse API Directly
 ```powershell
@@ -226,8 +232,12 @@ curl -H "Authorization: Bearer $token" https://org.crm.dynamics.com/api/data/v9.
 
 - **MCP Specification:** https://spec.modelcontextprotocol.io/
 - **Dataverse Web API:** https://learn.microsoft.com/power-apps/developer/data-platform/webapi/overview
-- **Azure.Identity Docs:** https://learn.microsoft.com/dotnet/api/azure.identity
-- **GitHub Copilot MCP Support:** Configure via `github.copilot.chat.mcp.servers` in VS Code settings
+- **Power Platform API:** https://learn.microsoft.com/en-us/rest/api/power-platform/
+- **Azre DevOps API:** https://learn.microsoft.com/en-us/rest/api/azure/devops/?view=azure-devops-rest-7.2
+- **Azure CLI:** https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest
+- **GitHub Copilot MCP:** https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp
+- **Keep a Changelog:** https://keepachangelog.com/en/1.0.0/
+- **Semantic Versioning:** https://semver.org/spec/v2.0.0.html
 
 ---
 
@@ -259,6 +269,45 @@ Keep documentation:
 - **Current** - Remove outdated information immediately
 - **AI-friendly** - Use clear structure with headers and code blocks
 
+### CHANGELOG.md Maintenance
+**Always keep CHANGELOG.md current** - Follow Keep a Changelog standard (https://keepachangelog.com/en/1.0.0/).
+
+**Structure:**
+- `## [Unreleased]` - Changes not yet released
+- `## [Version] - YYYY-MM-DD` - Released versions in descending order
+
+**Change Categories (in order):**
+- `### Added` - New features
+- `### Changed` - Changes in existing functionality
+- `### Deprecated` - Soon-to-be removed features
+- `### Removed` - Removed features
+- `### Fixed` - Bug fixes
+- `### Security` - Vulnerability fixes
+
+**When to update:**
+- Add new MCP tools → `### Added`
+- Modify existing tool behavior → `### Changed`
+- Remove tools or features → `### Removed`
+- Fix bugs → `### Fixed`
+- Change config format → `### Changed`
+- Breaking changes → Note in `### Changed` with **BREAKING:** prefix
+
+**Example:**
+```markdown
+## [Unreleased]
+
+### Added
+- Power Platform environment management tools
+- `dataverse_whoami` tool for authentication verification
+
+### Changed
+- **BREAKING:** Removed `environment` property from config files
+- Log file naming simplified to `pipedream-mcp-{subcommand}-{org}-{date}.log`
+
+### Fixed
+- Authentication token caching for improved performance
+```
+
 ---
 
 ## Output Requirements
@@ -268,9 +317,9 @@ When implementing:
 - Follow .NET naming conventions (PascalCase for public members)
 - Include XML documentation comments for public APIs
 - Use async/await for all I/O operations
-- Log important events and errors to stderr
+- Log events to file (Serilog), only fatal startup errors to stderr
 - Return structured error messages in MCP responses
 - Test each component immediately after creation
-- **Update README.md** when adding features or changing configuration
+- **Update README.md and CHANGELOG.md** when adding features
 
 **File naming:** Use descriptive names matching class names (e.g., `DataverseClient.cs`, `AzureAuthProvider.cs`)

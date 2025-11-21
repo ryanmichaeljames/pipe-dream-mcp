@@ -35,7 +35,6 @@ public class DataverseCommandHandler : ICommandHandler
             // Inline configuration via command-line arguments
             config = new EnvironmentConfig
             {
-                Environment = "inline",
                 Dataverse = new DataverseConfig
                 {
                     Url = options.DataverseUrl,
@@ -142,8 +141,7 @@ public class DataverseCommandHandler : ICommandHandler
         };
 
         logger.LogInformation("MCP server started - ready to accept requests");
-        logger.LogInformation("Environment: {Environment}", config.Environment);
-        logger.LogInformation("Dataverse URL: {DataverseUrl}", config.Dataverse.Url);
+        logger.LogInformation("Dataverse URL: {Url}", config.Dataverse.Url);
         logger.LogInformation("Write Operations: {WriteOps}", config.Dataverse.EnableWriteOperations ? "ENABLED" : "DISABLED");
         logger.LogInformation("Delete Operations: {DeleteOps}", config.Dataverse.EnableDeleteOperations ? "ENABLED" : "DISABLED");
         
@@ -168,7 +166,7 @@ public class DataverseCommandHandler : ICommandHandler
             var uri = new Uri(url);
             var hostname = uri.Host;
             
-            // Extract first part before .crm (e.g., "my-org" from "my-org.crm.dynamics.com")
+            // Extract first part before .crm (e.g., "orgname" from "orgname.crm.dynamics.com")
             var parts = hostname.Split('.');
             if (parts.Length > 0)
             {

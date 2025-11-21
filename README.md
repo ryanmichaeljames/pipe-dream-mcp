@@ -9,11 +9,12 @@
 
 ## Overview
 
-PipeDream MCP enables AI agents (like GitHub Copilot) to interact with Microsoft Dataverse using Azure CLI authentication. This MCP server provides secure access to Dataverse data through a standardized protocol interface.
+PipeDream MCP enables AI agents (like GitHub Copilot) to interact with Microsoft Dataverse and Power Platform using Azure CLI authentication. This MCP server provides secure access to Dataverse data and Power Platform management through a standardized protocol interface.
 
 **Key Features:**
 - **Dataverse operations** - Query, retrieve, metadata with full OData support
 - **Power Automate flow management** - Query, activate, and deactivate cloud flows
+- **Power Platform environment management** - List environments, get settings, view operations history
 - **Azure CLI authentication** - Secure token-based auth with automatic caching and refresh
 - **Flexible configuration** - Inline arguments or JSON config files
 - **Safety controls** - Opt-in flags for write and delete operations (default: disabled)
@@ -99,6 +100,7 @@ pipedream-mcp --version
 ### Subcommands
 
 - `dataverse` - Run Dataverse MCP server
+- `powerplatform` - Run Power Platform MCP server
 - `azure-devops` - Run Azure DevOps MCP server (coming soon)
 
 ### Dataverse Subcommand
@@ -163,7 +165,6 @@ Create JSON config files for reusable environment settings:
 
 ```json
 {
-  "environment": "prod",
   "dataverse": {
     "url": "https://your-org.crm.dynamics.com",
     "apiVersion": "v9.2",
@@ -182,8 +183,8 @@ PipeDream MCP uses file-based logging following MCP protocol best practices (std
 
 **Log Files:**
 - Location: `{AppDirectory}/logs/pipedream-mcp-{subcommand}-{orgname}-{yyyyMMdd}.log`
-- Example: `logs/pipedream-mcp-dataverse-my-org-20251121.log`
-- One log file per environment per day
+- Example: `logs/pipedream-mcp-dataverse-orgname-20251121.log`
+- One log file per subcommand/organization per day
 - Automatic cleanup after 30 days
 
 **Log Levels:**
@@ -388,6 +389,129 @@ Deactivate a Power Automate flow (set to Draft state). Requires `--enable-write-
 - `workflowId` (required) - Workflow GUID to deactivate
 
 **Example:** Deactivate a flow for maintenance
+
+## Power Platform Subcommand
+
+The Power Platform subcommand provides environment management capabilities for Power Platform administrators.
+
+### Usage
+
+```powershell
+pipedream-mcp powerplatform --config-file <path> [options]
+pipedream-mcp powerplatform --help
+```
+
+**Note:** Power Platform subcommand requires a config file (no inline URL option).
+
+### Configuration
+
+Create a config file with the `powerplatform` section:
+
+```json
+{
+  "powerplatform": {
+    "apiVersion": "2022-03-01-preview",
+    "timeout": 30
+  },
+  "logging": {
+    "level": "info"
+  }
+}
+```
+
+**Config file can include both Dataverse and Power Platform sections:**
+
+```json
+{
+  "dataverse": {
+    "url": "https://your-org.crm.dynamics.com/",
+    "apiVersion": "v9.2",
+    "timeout": 30
+  },
+  "powerplatform": {
+    "apiVersion": "2022-03-01-preview",
+    "timeout": 30
+  }
+}
+```
+
+### Power Platform Tools
+
+#### `powerplatform_environmentmanagement_list_environments`
+List all Power Platform environments the authenticated user has access to.
+
+**Parameters:** None
+
+**Returns:** Environment details including ID, name, type, region, and state.
+
+**Example:** Discover all environments
+```json
+{}
+```
+
+#### `powerplatform_environmentmanagement_get_environment_settings`
+Get settings and feature flags for a specific environment.
+
+**Parameters:**
+- `environmentId` (required) - Environment GUID (use list_environments to discover)
+- `select` (optional) - Comma-separated list of setting names
+- `top` (optional) - Maximum number of settings to return
+
+**Example:** Get all settings for an environment
+```json
+{
+  "environmentId": "12345678-1234-1234-1234-123456789012"
+}
+```
+
+#### `powerplatform_environmentmanagement_list_environment_operations`
+List lifecycle operations (create, update, delete, backup, restore) for an environment.
+
+**Parameters:**
+- `environmentId` (required) - Environment GUID
+- `limit` (optional) - Maximum operations per page
+- `continuationToken` (optional) - Token for next page
+
+**Example:** View recent operations
+```json
+{
+  "environmentId": "12345678-1234-1234-1234-123456789012",
+  "limit": 10
+}
+```
+
+#### `powerplatform_environmentmanagement_get_operation`
+Get detailed information about a specific operation.
+
+**Parameters:**
+- `operationId` (required) - Operation GUID (from list_environment_operations)
+
+**Example:** Check operation status
+```json
+{
+  "operationId": "87654321-4321-4321-4321-210987654321"
+}
+```
+
+### Logging
+
+Power Platform logging uses: `logs/pipedream-mcp-powerplatform-{yyyyMMdd}.log`
+
+This single log file applies to all environments since Power Platform tools work across all environments the user has access to.
+
+### VS Code Configuration
+
+```json
+{
+  "servers": {
+    "pipedream-powerplatform": {
+      "type": "stdio",
+      "command": "pipedream-mcp",
+      "args": ["powerplatform", "--config-file", "C:/configs/prod.json"]
+    }
+  }
+}
+```
 
 ## Contributing
 
